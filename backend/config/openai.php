@@ -60,6 +60,15 @@ return [
 
     'image_timeout' => (int) env('OPENAI_IMAGE_TIMEOUT', 120),
 
+    /**
+     * Where speaking scene images are stored after generation: "r2" (Cloudflare R2) or "public" (local disk + /storage URL).
+     * R2: set R2_BUCKET, R2_ENDPOINT, R2_URL (public base URL for the bucket or custom domain), and keys (see config/filesystems.php).
+     */
+    'speaking_image_disk' => env('SPEAKING_IMAGE_DISK', 'r2'),
+
+    /** Object key prefix inside the disk (R2 "folder"; created implicitly on first upload). */
+    'speaking_image_path_prefix' => trim((string) env('SPEAKING_IMAGE_PATH_PREFIX', 'speaking-question-images'), '/'),
+
     /** Store request/response JSON in openai_activity_logs (set OPENAI_LOG_ACTIVITY=false to disable). */
     'log_activity' => filter_var(env('OPENAI_LOG_ACTIVITY', 'true'), FILTER_VALIDATE_BOOLEAN),
 

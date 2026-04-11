@@ -7,7 +7,6 @@ use App\Models\Question;
 use App\Services\OpenAiImageGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class AdminQuestionController extends Controller
@@ -253,21 +252,8 @@ class AdminQuestionController extends Controller
 
     private function deleteStoredQuestionImageIfAny(Question $question): void
     {
-        $url = $question->image_url;
-        if (! is_string($url) || $url === '') {
-            return;
-        }
-        $path = parse_url($url, PHP_URL_PATH);
-        if (! is_string($path)) {
-            return;
-        }
-        $prefix = '/storage/';
-        if (! str_starts_with($path, $prefix)) {
-            return;
-        }
-        $rel = substr($path, strlen($prefix));
-        if ($rel !== '' && str_starts_with($rel, 'question-images/')) {
-            Storage::disk('public')->delete($rel);
-        }
+        app(OpenAiImageGenerationService::class)->deleteByPublicUrl(
+            is_string($question->image_url) ? $question->image_url : null
+        );
     }
 }

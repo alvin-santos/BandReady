@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * Generates a scene image via OpenAI Images API, stores it on the public disk, returns a URL path for clients.
+ * Generates a scene image via OpenAI Images API, stores it on the configured disk (R2 or public), returns a URL for clients.
  */
 class OpenAiImageGenerationService
 {
@@ -19,7 +19,7 @@ class OpenAiImageGenerationService
     private const STYLE_PREFIX = 'Educational exam practice illustration, clean realistic style, no text overlays, no logos, no recognizable real people or celebrities: ';
 
     /**
-     * @return array{path: string, public_url: string, revised_prompt?: string}
+     * @return array{path: string, public_url: string, disk: string, revised_prompt?: string}
      */
     public function generateAndStore(string $userPrompt): array
     {
@@ -76,16 +76,175 @@ class OpenAiImageGenerationService
             $ext = 'jpg';
         }
 
-        $name = 'question-images/'.Str::uuid().'.'.$ext;
-        Storage::disk('public')->put($name, $bin->body());
+        $diskName = (string) config('openai.speaking_image_disk', 'public');
+        $prefix = trim((string) config('openai.speaking_image_path_prefix', 'speaking-question-images'), '/');
+        $dir = $prefix !== '' ? $prefix.'/' : '';
+        $name = $dir.Str::uuid().'.'.$ext;
 
-        $publicUrl = Storage::disk('public')->url($name);
+        $disk = Storage::disk($diskName);
+        $disk->put($name, $bin->body());
+
+        $publicUrl = $this->publicUrlForObject($diskName, $name);
 
         return [
             'path' => $name,
             'public_url' => $publicUrl,
+            'disk' => $diskName,
             'revised_prompt' => $revised,
         ];
+    }
+
+    /**
+     * Browser URL for a stored object (R2 includes /{bucket}/ when configured for *.r2.dev public URLs).
+     */
+    public function publicUrlForObject(string $diskName, string $objectKey): string
+    {
+        if ($diskName === 'r2') {
+            return $this->buildR2PublicUrl($objectKey);
+        }
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $adapter */
+        $adapter = Storage::disk($diskName);
+
+        return $adapter->url($objectKey);
+    }
+
+    /**
+     * Remove a stored speaking image referenced by its public URL (local /storage or R2 public base URL).
+     */
+    public function deleteByPublicUrl(?string $publicUrl): void
+    {
+        if (! is_string($publicUrl) || $publicUrl === '') {
+            return;
+        }
+
+        $rel = $this->publicDiskRelativePathFromImageUrl($publicUrl);
+        if ($rel !== null) {
+            Storage::disk('public')->delete($rel);
+
+            return;
+        }
+
+        $key = $this->r2ObjectKeyFromUrl($publicUrl);
+        if ($key !== null) {
+            Storage::disk('r2')->delete($key);
+        }
+    }
+
+    /**
+     * If the URL points at the app public disk under a known question-image prefix, return the relative path.
+     *
+     * @return non-empty-string|null path relative to the public disk root
+     */
+    public function publicDiskRelativePathFromImageUrl(string $publicUrl): ?string
+    {
+        $path = parse_url($publicUrl, PHP_URL_PATH);
+        if (! is_string($path)) {
+            return null;
+        }
+        $prefix = '/storage/';
+        if (! str_starts_with($path, $prefix)) {
+            return null;
+        }
+        $rel = substr($path, strlen($prefix));
+        if ($rel === '' || str_contains($rel, '..')) {
+            return null;
+        }
+        foreach ($this->speakingImageKeyPrefixCandidates() as $ap) {
+            if ($ap !== '' && str_starts_with($rel, $ap.'/')) {
+                return $rel;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether this URL is already one of our R2 public URLs (object key resolvable).
+     */
+    public function isR2QuestionImageUrl(string $publicUrl): bool
+    {
+        return $this->r2ObjectKeyFromUrl($publicUrl) !== null;
+    }
+
+    /**
+     * @return non-empty-string|null object key in the R2 bucket
+     */
+    private function r2ObjectKeyFromUrl(string $publicUrl): ?string
+    {
+        foreach ($this->r2PublicUrlPrefixesLongestFirst() as $prefix) {
+            if (! str_starts_with($publicUrl, $prefix.'/')) {
+                continue;
+            }
+            $key = substr($publicUrl, strlen($prefix) + 1);
+            if ($key === '' || str_contains($key, '..')) {
+                continue;
+            }
+            foreach ($this->speakingImageKeyPrefixCandidates() as $ap) {
+                if ($ap !== '' && str_starts_with($key, $ap.'/')) {
+                    return $key;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Public browser URL for an R2 object (includes /{bucket}/ when url_include_bucket is true).
+     */
+    private function buildR2PublicUrl(string $objectKey): string
+    {
+        $trimmedKey = ltrim($objectKey, '/');
+        foreach ($this->r2PublicUrlPrefixesLongestFirst() as $prefix) {
+            if ($prefix !== '') {
+                return $prefix.'/'.$trimmedKey;
+            }
+        }
+
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $r2 */
+        $r2 = Storage::disk('r2');
+
+        return $r2->url($objectKey);
+    }
+
+    /**
+     * URL prefixes to strip when resolving an object key, or the base to use when building a URL.
+     * Longer prefix first so https://pub….r2.dev/{bucket}/… is matched before https://pub….r2.dev/.
+     *
+     * @return list<string>
+     */
+    private function r2PublicUrlPrefixesLongestFirst(): array
+    {
+        $base = rtrim((string) config('filesystems.disks.r2.url'), '/');
+        if ($base === '') {
+            return [];
+        }
+        $includeBucket = filter_var(config('filesystems.disks.r2.url_include_bucket', true), FILTER_VALIDATE_BOOLEAN);
+        $bucket = trim((string) config('filesystems.disks.r2.bucket'), '/');
+        $withBucket = $includeBucket && $bucket !== '' && ! str_ends_with($base, '/'.$bucket)
+            ? $base.'/'.$bucket
+            : null;
+
+        if ($withBucket !== null && $withBucket !== $base) {
+            return [$withBucket, $base];
+        }
+
+        return [$base];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function speakingImageKeyPrefixCandidates(): array
+    {
+        $configured = trim((string) config('openai.speaking_image_path_prefix', 'speaking-question-images'), '/');
+
+        return array_values(array_unique(array_filter([
+            $configured,
+            'speaking-question-images',
+            'question-images',
+        ])));
     }
 
     /**
