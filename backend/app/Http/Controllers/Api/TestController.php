@@ -42,6 +42,7 @@ class TestController extends Controller
                 'guest_section' => 'guest_sign_in_required',
                 'speaking_limit' => 'speaking_limit',
                 'practice_mode_guest' => 'sign_in_required',
+                'speaking_ai_suspended' => 'speaking_ai_suspended',
                 default => null,
             };
 

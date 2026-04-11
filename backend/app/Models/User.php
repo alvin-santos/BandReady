@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use App\Services\ExamAccessService;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Services\SpeakingAiSuspensionService;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -53,6 +54,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function toApiArray(): array
     {
         $speaking = app(ExamAccessService::class)->speakingUsageForUser($this);
+        $suspended = app(SpeakingAiSuspensionService::class)->isSuspended($this);
 
         return [
             'id' => $this->id,
@@ -64,6 +66,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'subscription_expires_at' => $this->subscription_expires_at?->toIso8601String(),
             'speaking_attempts_used' => $speaking['used'],
             'speaking_attempts_limit' => $speaking['limit'],
+            'speaking_ai_suspended' => $suspended,
+            'speaking_ai_suspended_at' => $this->speaking_ai_suspended_at?->toIso8601String(),
+            'speaking_ai_suspension_notice' => $suspended ? (string) ($this->speaking_ai_suspension_notice ?? '') : null,
         ];
     }
 
@@ -89,6 +94,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'subscription_expires_at' => 'datetime',
             'progress_reminder_sent_at' => 'datetime',
+            'speaking_ai_suspended_at' => 'datetime',
         ];
     }
 }

@@ -16,6 +16,18 @@ export function friendlySpeakingServiceError(err) {
   const rawMsg = dataMsg || firstErr || (typeof e.message === 'string' ? e.message : '');
   const msg = String(rawMsg);
   const code = typeof e.code === 'string' ? e.code : '';
+  const apiCode = data && typeof data.code === 'string' ? data.code : '';
+
+  if (status === 403 && apiCode === 'speaking_ai_suspended') {
+    const notice =
+      data && typeof data.speaking_ai_suspension_notice === 'string' && data.speaking_ai_suspension_notice.trim() !== ''
+        ? data.speaking_ai_suspension_notice.trim()
+        : dataMsg || 'Speaking practice was disabled on your account because inappropriate language was detected.';
+    return {
+      message: notice,
+      canRetry: false,
+    };
+  }
 
   const technical =
     /curl|libcurl|openai\.com|chat\/completions|connection refused|getaddrinfo|resolving timed|operation timed|ECONNRESET|socket hang up|ssl|certificate/i.test(

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Badge, Button, Form, Modal, Spinner } from 'react-bootstrap';
 import AdminQuestionKeyPanel from './AdminQuestionKeyPanel.jsx';
 import { api } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 function isAbortError(e) {
   return e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError' || e?.name === 'AbortError';
@@ -70,6 +71,7 @@ export default function IeltsAiSpeakingInterview({
   speakingConversationMaxChars = 16000,
   showAdminKey = false,
 }) {
+  const { refresh: refreshAuth } = useAuth();
   const [exchanges, setExchanges] = useState(() => parseIeltsAiTranscript(value));
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
@@ -283,6 +285,9 @@ export default function IeltsAiSpeakingInterview({
         if (isAbortError(e)) {
           return;
         }
+        if (e?.response?.data?.code === 'speaking_ai_suspended') {
+          void refreshAuth();
+        }
         setApiError(e, () => {
           void runStep(withCandidate);
         });
@@ -300,6 +305,7 @@ export default function IeltsAiSpeakingInterview({
       startPrepTimer,
       setApiError,
       weakConnection,
+      refreshAuth,
     ]
   );
 
@@ -349,6 +355,9 @@ export default function IeltsAiSpeakingInterview({
       }
     } catch (e) {
       if (!isAbortError(e)) {
+        if (e?.response?.data?.code === 'speaking_ai_suspended') {
+          void refreshAuth();
+        }
         setApiError(e, () => {
           void bootstrapOpen();
         });
@@ -365,6 +374,7 @@ export default function IeltsAiSpeakingInterview({
     commitExaminerExchange,
     startPrepTimer,
     setApiError,
+    refreshAuth,
     weakConnection,
   ]);
 

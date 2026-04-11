@@ -45,6 +45,13 @@ return [
 
     'speaking_feedback_timeout' => (int) env('OPENAI_SPEAKING_TIMEOUT', 90),
 
+    /** Small classifier for abusive / disruptive speaking text (per-turn and rubric JSON). */
+    'speaking_moderation_model' => env('OPENAI_SPEAKING_MODERATION_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')),
+
+    'speaking_moderation_timeout' => (int) env('OPENAI_SPEAKING_MODERATION_TIMEOUT', 20),
+
+    'speaking_moderation_max_chars' => (int) env('OPENAI_SPEAKING_MODERATION_MAX_CHARS', 4000),
+
     /** Image generation for speaking (DALL·E 3 / gpt-image-1 via Images API). */
     'image_model' => env('OPENAI_IMAGE_MODEL', 'dall-e-3'),
 

@@ -170,6 +170,12 @@ export default function ExamStart() {
           alert(msg || 'This test requires an active subscription.');
         } else if (code === 'speaking_limit_reached') {
           alert(msg || 'You have used all free Speaking attempts. Pro unlocks unlimited Speaking.');
+        } else if (code === 'speaking_ai_suspended') {
+          alert(
+            msg ||
+              'Speaking practice was disabled on your account because inappropriate language was detected. See your profile for details.'
+          );
+          void refresh();
         } else if (code === 'guest_section_denied') {
           alert(msg || 'Sign in to use Listening and Speaking. Guests may use Reading and Writing only.');
         } else {
@@ -453,6 +459,11 @@ export default function ExamStart() {
                                     Sign in
                                   </span>
                                 )}
+                                {locked && !comingSoon && t.lock_reason === 'speaking_ai_suspended' && (
+                                  <span className="badge bg-warning bg-opacity-15 text-warning-emphasis border border-warning border-opacity-25">
+                                    Speaking paused
+                                  </span>
+                                )}
                                 {speakingQuota && isSpeaking && (
                                   <span
                                     className={`badge font-monospace ${speakingQuota.used >= speakingQuota.limit ? 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25' : 'bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-25'}`}
@@ -474,8 +485,9 @@ export default function ExamStart() {
                 <i className="bi bi-info-circle mt-1 flex-shrink-0" aria-hidden />
                 <span>
                   Lists reflect your mode. <strong>Sign in</strong> appears when a guest needs an account for that skill;{' '}
-                  <strong>Pro</strong> appears when you have used all free Speaking attempts. <strong>Coming soon</strong>{' '}
-                  means the test is not available to start yet.
+                  <strong>Pro</strong> appears when you have used all free Speaking attempts.{' '}
+                  <strong>Speaking paused</strong> means Speaking was disabled on your account after inappropriate language was
+                  detected—see Profile. <strong>Coming soon</strong> means the test is not available to start yet.
                 </span>
               </p>
             </Form.Group>

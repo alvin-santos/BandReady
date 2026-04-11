@@ -7,6 +7,8 @@ import SiteTrafficRecorder from './SiteTrafficRecorder.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { THEME_SWITCH_UI_ENABLED, useTheme } from '../context/ThemeContext.jsx';
 
+const navItem = 'd-flex align-items-center gap-2';
+
 export default function MainLayout() {
   const { user, logout, isAdmin } = useAuth();
   const { theme, toggle } = useTheme();
@@ -27,71 +29,90 @@ export default function MainLayout() {
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="br-nav" />
           <Navbar.Collapse id="br-nav" className="justify-content-end">
-            <Nav className="align-items-lg-center gap-lg-1 br-main-nav">
-              <NavDropdown
-                title={
-                  <span className="d-inline-flex align-items-center gap-2">
-                    <i className="bi bi-journal-check" aria-hidden />
-                    Practice
-                  </span>
-                }
-                id="br-nav-dd-practice"
-              >
-                <NavDropdown.Item as={Link} to="/exam/start" className="d-flex align-items-center gap-2">
-                  <i className="bi bi-play-circle" aria-hidden />
-                  Start practice
-                </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/practice-disclaimer" className="d-flex align-items-center gap-2">
-                  <i className="bi bi-shield-exclamation" aria-hidden />
-                  Practice disclaimer
-                </NavDropdown.Item>
-              </NavDropdown>
+            <Nav className="align-items-lg-center flex-lg-wrap justify-content-lg-end gap-lg-2 br-main-nav">
+              <Nav.Link as={Link} to="/exam/start" className={navItem}>
+                <i className="bi bi-play-circle" aria-hidden />
+                Start practice
+              </Nav.Link>
+              <Nav.Link as={Link} to="/practice-disclaimer" className={navItem}>
+                <i className="bi bi-shield-exclamation" aria-hidden />
+                Disclaimer
+              </Nav.Link>
+              <Nav.Link as={Link} to="/subscription" className={navItem}>
+                <i className="bi bi-star-fill" aria-hidden />
+                Pro
+              </Nav.Link>
+              <Nav.Link as={Link} to="/forum" className={navItem}>
+                <i className="bi bi-chat-square-text" aria-hidden />
+                Forum
+              </Nav.Link>
 
               <NavDropdown
                 title={
                   <span className="d-inline-flex align-items-center gap-2">
-                    <i className="bi bi-people" aria-hidden />
-                    Community
+                    <i className="bi bi-compass" aria-hidden />
+                    Explore
                   </span>
                 }
-                id="br-nav-dd-community"
+                id="br-nav-dd-explore"
               >
-                <NavDropdown.Item as={Link} to="/forum" className="d-flex align-items-center gap-2">
-                  <i className="bi bi-chat-square-text" aria-hidden />
-                  Forum
-                </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/rankings" className="d-flex align-items-center gap-2">
+                <NavDropdown.Item as={Link} to="/rankings" className={navItem}>
                   <i className="bi bi-trophy" aria-hidden />
                   Rankings
                 </NavDropdown.Item>
-              </NavDropdown>
-
-              <NavDropdown
-                title={
-                  <span className="d-inline-flex align-items-center gap-2">
-                    <i className="bi bi-three-dots" aria-hidden />
-                    More
-                  </span>
-                }
-                id="br-nav-dd-more"
-              >
-                <NavDropdown.Item as={Link} to="/subscription" className="d-flex align-items-center gap-2">
-                  <i className="bi bi-star-fill" aria-hidden />
-                  Pro
-                </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/resources" className="d-flex align-items-center gap-2">
+                <NavDropdown.Item as={Link} to="/resources" className={navItem}>
                   <i className="bi bi-file-earmark-arrow-down" aria-hidden />
                   Resources
                 </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/contact" className="d-flex align-items-center gap-2">
+                <NavDropdown.Item as={Link} to="/why-bandready" className={navItem}>
+                  <i className="bi bi-info-circle" aria-hidden />
+                  Why BandReady
+                </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/contact" className={navItem}>
                   <i className="bi bi-envelope" aria-hidden />
                   Contact
                 </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/why-bandready" className="d-flex align-items-center gap-2">
-                  <i className="bi bi-info-circle" aria-hidden />
-                  Why BandReady?
-                </NavDropdown.Item>
               </NavDropdown>
+
+              {user && verified && (
+                <>
+                  <Nav.Link as={Link} to="/dashboard" className={navItem}>
+                    <i className="bi bi-speedometer2" aria-hidden />
+                    Dashboard
+                  </Nav.Link>
+                  <Nav.Link as={Link} to="/profile" className={navItem}>
+                    <i className="bi bi-person-circle" aria-hidden />
+                    Profile
+                  </Nav.Link>
+                  <NavDropdown
+                    title={
+                      <span className="d-inline-flex align-items-center gap-2">
+                        <i className="bi bi-graph-up" aria-hidden />
+                        Insights
+                      </span>
+                    }
+                    id="br-nav-dd-insights"
+                  >
+                    <NavDropdown.Item as={Link} to="/analytics" className={navItem}>
+                      <i className="bi bi-graph-up-arrow" aria-hidden />
+                      Analytics
+                    </NavDropdown.Item>
+                    <NavDropdown.Item as={Link} to="/practice/mistakes" className={navItem}>
+                      <i className="bi bi-bullseye" aria-hidden />
+                      Mistakes
+                    </NavDropdown.Item>
+                    {isAdmin && (
+                      <>
+                        <NavDropdown.Divider />
+                        <NavDropdown.Item as={Link} to="/admin" className={navItem}>
+                          <i className="bi bi-shield-lock" aria-hidden />
+                          Admin
+                        </NavDropdown.Item>
+                      </>
+                    )}
+                  </NavDropdown>
+                </>
+              )}
 
               {THEME_SWITCH_UI_ENABLED && (
                 <button type="button" className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" onClick={toggle}>
@@ -101,57 +122,17 @@ export default function MainLayout() {
               )}
 
               {user ? (
-                <NavDropdown
-                  title={
-                    <span className="d-inline-flex align-items-center gap-2">
-                      <i className="bi bi-person-badge" aria-hidden />
-                      <span className="text-truncate" style={{ maxWidth: '10rem' }}>
-                        {user.name}
-                      </span>
-                    </span>
-                  }
-                  align="end"
-                  id="br-nav-dd-account"
-                >
+                <>
                   {!verified && (
-                    <NavDropdown.Item
-                      as={Link}
-                      to="/verify-email"
-                      className="d-flex align-items-center gap-2 text-warning"
-                    >
+                    <Nav.Link as={Link} to="/verify-email" className="d-flex align-items-center gap-2 text-warning">
                       <i className="bi bi-envelope-exclamation" aria-hidden />
                       Confirm email
-                    </NavDropdown.Item>
+                    </Nav.Link>
                   )}
-                  {verified && (
-                    <>
-                      <NavDropdown.Item as={Link} to="/dashboard" className="d-flex align-items-center gap-2">
-                        <i className="bi bi-speedometer2" aria-hidden />
-                        Dashboard
-                      </NavDropdown.Item>
-                      <NavDropdown.Item as={Link} to="/analytics" className="d-flex align-items-center gap-2">
-                        <i className="bi bi-graph-up-arrow" aria-hidden />
-                        Analytics
-                      </NavDropdown.Item>
-                      <NavDropdown.Item as={Link} to="/practice/mistakes" className="d-flex align-items-center gap-2">
-                        <i className="bi bi-bullseye" aria-hidden />
-                        Mistakes
-                      </NavDropdown.Item>
-                      <NavDropdown.Item as={Link} to="/profile" className="d-flex align-items-center gap-2">
-                        <i className="bi bi-person-circle" aria-hidden />
-                        Profile
-                      </NavDropdown.Item>
-                    </>
-                  )}
-                  {isAdmin && verified && (
-                    <NavDropdown.Item as={Link} to="/admin" className="d-flex align-items-center gap-2">
-                      <i className="bi bi-shield-lock" aria-hidden />
-                      Admin
-                    </NavDropdown.Item>
-                  )}
-                  <NavDropdown.Divider />
-                  <NavDropdown.Item
-                    className="d-flex align-items-center gap-2"
+                  <Nav.Link
+                    as="button"
+                    type="button"
+                    className={navItem}
                     onClick={() => {
                       logout();
                       navigate('/');
@@ -159,8 +140,8 @@ export default function MainLayout() {
                   >
                     <i className="bi bi-box-arrow-right" aria-hidden />
                     Log out
-                  </NavDropdown.Item>
-                </NavDropdown>
+                  </Nav.Link>
+                </>
               ) : (
                 <>
                   <Nav.Link as={Link} to="/login" className="d-flex align-items-center gap-2">

@@ -28,4 +28,18 @@ return [
     */
     'free_speaking_attempt_limit' => (int) env('EXAM_ACCESS_FREE_SPEAKING_LIMIT', 3),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Speaking AI suspension notice (user profile + API errors)
+    |--------------------------------------------------------------------------
+    |
+    | Shown when inappropriate language or abuse is detected in AI speaking flows.
+    | Do not include profanity or user-submitted text here.
+    |
+    */
+    'speaking_ai_suspension_notice' => (string) env(
+        'EXAM_ACCESS_SPEAKING_AI_SUSPENSION_NOTICE',
+        'Speaking practice was disabled on your account because inappropriate or abusive language was detected in your speaking practice. This applies to all Speaking tests. If you believe this is a mistake, contact us via the Contact page.'
+    ),
+
 ];

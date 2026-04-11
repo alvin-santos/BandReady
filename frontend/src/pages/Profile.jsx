@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Col, Container, Row, Spinner } from 'react-bootstrap';
+import { Alert, Col, Container, Row, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import {
   Chart as ChartJS,
@@ -71,6 +71,23 @@ export default function Profile() {
         <i className="bi bi-person-badge text-br-rose" aria-hidden />
         Profile
       </h1>
+      {user.speaking_ai_suspended && (
+        <Alert variant="warning" className="d-flex gap-2 align-items-start mb-4">
+          <i className="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1" aria-hidden />
+          <div>
+            <strong>Speaking practice disabled</strong>
+            {user.speaking_ai_suspended_at && (
+              <div className="small text-muted mt-1">
+                Since {new Date(user.speaking_ai_suspended_at).toLocaleString()}
+              </div>
+            )}
+            <p className="mb-0 mt-2 small">
+              {user.speaking_ai_suspension_notice ||
+                'Speaking tests are not available on this account after inappropriate language was detected in speaking practice. Use Contact if you believe this is a mistake.'}
+            </p>
+          </div>
+        </Alert>
+      )}
       <ReadinessCard readiness={data.readiness} compact />
       <Row className="g-4">
         <Col md={6}>

@@ -8,15 +8,16 @@ use App\Models\Attempt;
 use App\Models\Question;
 use App\Models\Test;
 use App\Models\User;
-use Illuminate\Support\Collection;
-use App\Support\IeltsAiSpeaking;
+use App\Services\ExamAccessService;
 use App\Services\IeltsSpeakingInterviewOrder;
 use App\Services\OpenAiSpeakingFeedbackService;
 use App\Services\OpenAiWritingFeedbackService;
-use App\Services\ExamAccessService;
 use App\Services\QuestionGrader;
+use App\Services\SpeakingAiSuspensionService;
 use App\Services\StatisticsRecorder;
+use App\Support\IeltsAiSpeaking;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -302,6 +303,9 @@ class AttemptController extends Controller
                         try {
                             $feedbackPayload = $speakingAi->evaluateSpeaking($question, $ans, $user?->id, $attempt->id);
                             $subjective = QuestionGrader::subjectivePointsFromWritingAi($feedbackPayload);
+                            if ($user && ($feedbackPayload['content_policy_violation'] ?? false)) {
+                                app(SpeakingAiSuspensionService::class)->suspendForContentPolicy($user);
+                            }
                         } catch (\Throwable $e) {
                             Log::warning('Speaking AI grading failed', [
                                 'attempt_id' => $attempt->id,
@@ -345,11 +349,11 @@ class AttemptController extends Controller
 
             StatisticsRecorder::recordAttempt($score, true);
 
-        return response()->json([
-            'attempt_id' => $attempt->id,
-            'score' => $score,
-            'redirect' => '/results/'.$attempt->id,
-        ]);
+            return response()->json([
+                'attempt_id' => $attempt->id,
+                'score' => $score,
+                'redirect' => '/results/'.$attempt->id,
+            ]);
         });
     }
 

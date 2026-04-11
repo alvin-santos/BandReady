@@ -21,6 +21,7 @@
   --br-radius: 14px;
   --br-font: 'DM Sans', system-ui, sans-serif;
   --br-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --br-nav-bg: color-mix(in srgb, var(--br-blush-soft) 42%, var(--br-surface));
 }
 
 [data-theme='dark'] {
@@ -40,6 +41,7 @@
   --br-blush-mist: rgba(251, 113, 133, 0.12);
   --br-blush-edge: rgba(251, 113, 133, 0.32);
   --br-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --br-nav-bg: color-mix(in srgb, var(--br-blush-soft) 18%, var(--br-elevated));
 }
 
 html,
@@ -91,9 +93,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 1020;
-  backdrop-filter: blur(12px);
-  background: color-mix(in srgb, var(--br-surface) 88%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--br-blush-edge) 35%, var(--br-border));
+  background: var(--br-nav-bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--br-blush-edge) 40%, var(--br-border));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--br-border) 65%, transparent);
 }
 
 .br-exam-shell {
@@ -494,6 +496,12 @@ small,
 @media (max-width: 991.98px) {
   .br-main-nav {
     padding-top: 0.5rem;
+    gap: 0.15rem 0;
+  }
+
+  .br-main-nav .nav-link {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
   }
 
   .br-main-nav .nav-item.dropdown {

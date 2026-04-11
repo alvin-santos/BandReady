@@ -61,8 +61,10 @@ Return a single JSON object with exactly these keys (no markdown):
 - "summary" (string): 2–4 sentences; prioritise grammar, vocabulary, and clarity; brief note on topic fit if useful. **No word “prompt”.**
 - "strengths" (array of 2–4 short strings). **No word “prompt”.**
 - "improvements" (array of 2–4 short strings). **No word “prompt”.**
+- "content_policy_violation" (boolean): true only if **candidate / learner words** in the transcript contain slurs, severe profanity used as abuse or insult, hate, threats, or are obvious disruptive spam with no good-faith attempt at the speaking task. Must be **false** for weak English, civil off-topic answers, fillers, or normal mistakes.
+- "content_policy_category" (string): exactly one of "none", "profanity", "harassment", "disruptive". Use "none" when content_policy_violation is false.
 
-If the transcript is gibberish or not English, score near 0 and explain briefly.
+If the transcript is gibberish or not English, score near 0 and explain briefly. Still set content_policy_violation to false unless it is also abusive as above.
 SYS;
 
         $user = "Task / question the learner answered:\n".mb_substr($prompt, 0, 12000);
@@ -73,7 +75,7 @@ SYS;
             $user .= "\n\nRubric / model points (for your reference only):\n".mb_substr($rubric, 0, 8000);
         }
         if ($isAiInterview) {
-            $user .= "\n\nContext: This was a **full IELTS-style AI mock interview** (Parts 1–3). The transcript includes examiner lines and the candidate’s turns (from speech-to-text). Grade the candidate’s English **across all candidate turns**.";
+            $user .= "\n\nContext: This was a **full IELTS-style AI mock interview** (Parts 1–3). The transcript includes examiner lines and the candidate’s turns (from speech-to-text). Grade the candidate’s English **across all candidate turns**. For **content_policy_violation**, judge **only the candidate’s** words, not the examiner script.";
         }
         $transcriptBody = $isAiInterview
             ? $this->flattenStoredIeltsAiTranscript($trimmed, $maxChars)
@@ -176,6 +178,15 @@ SYS;
         $strengths = array_map(fn (string $s) => $this->sanitizeUserFacingFeedbackText($s), $strengths);
         $improvements = array_map(fn (string $s) => $this->sanitizeUserFacingFeedbackText($s), $improvements);
 
+        $policyV = (bool) ($raw['content_policy_violation'] ?? false);
+        $policyCat = strtolower(trim((string) ($raw['content_policy_category'] ?? 'none')));
+        if (! in_array($policyCat, ['none', 'profanity', 'harassment', 'disruptive'], true)) {
+            $policyCat = $policyV ? 'disruptive' : 'none';
+        }
+        if (! $policyV) {
+            $policyCat = 'none';
+        }
+
         return [
             'grading_mode' => 'ai',
             'overall_score_0_100' => $overall,
@@ -187,6 +198,8 @@ SYS;
             'summary' => $summary,
             'strengths' => $strengths,
             'improvements' => $improvements,
+            'content_policy_violation' => $policyV,
+            'content_policy_category' => $policyCat,
         ];
     }
 
@@ -255,6 +268,8 @@ SYS;
             'summary' => 'No transcript was available for this task.',
             'strengths' => [],
             'improvements' => ['Record again with a clear spoken answer to the task.'],
+            'content_policy_violation' => false,
+            'content_policy_category' => 'none',
         ];
     }
 

@@ -7,8 +7,11 @@ use App\Models\Attempt;
 use App\Models\Question;
 use App\Models\User;
 use App\Services\OpenAiIeltsSpeakingConversationService;
+use App\Services\OpenAiSpeakingModerationService;
+use App\Services\SpeakingAiSuspensionService;
 use App\Support\IeltsAiSpeaking;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -33,6 +36,8 @@ class IeltsSpeakingAiController extends Controller
 
         $question = Question::query()->findOrFail($data['question_id']);
         $this->assertAiSpeakingQuestion($attempt, $question);
+
+        $this->assertSpeakingAiNotSuspended($user);
 
         $out = $ai->nextTurn([], null, $user->id, 'attempt:'.$attempt->id.',q:'.$question->id);
 
@@ -62,6 +67,8 @@ class IeltsSpeakingAiController extends Controller
         $question = Question::query()->findOrFail($data['question_id']);
         $this->assertAiSpeakingQuestion($attempt, $question);
 
+        $this->assertSpeakingAiNotSuspended($user);
+
         $full = $this->normalizeExchanges($data['exchanges']);
         if ($full === []) {
             throw ValidationException::withMessages([
@@ -84,7 +91,18 @@ class IeltsSpeakingAiController extends Controller
             ]);
         }
 
-        $out = $ai->nextTurn($prior, $latest, $user->id, 'attempt:'.$attempt->id.',q:'.$question->id);
+        $contextRef = 'attempt:'.$attempt->id.',q:'.$question->id;
+        if (! $user->isAdmin()) {
+            $mod = app(OpenAiSpeakingModerationService::class)->screenCandidateText($latest, $user->id, $contextRef);
+            if (($mod['violation'] ?? false) === true) {
+                app(SpeakingAiSuspensionService::class)->suspendForContentPolicy($user);
+                $user->refresh();
+
+                throw new HttpResponseException($this->speakingSuspendedJsonResponse($user));
+            }
+        }
+
+        $out = $ai->nextTurn($prior, $latest, $user->id, $contextRef);
 
         return response()->json($out);
     }
@@ -143,6 +161,33 @@ class IeltsSpeakingAiController extends Controller
         }
 
         return $out;
+    }
+
+    private function assertSpeakingAiNotSuspended(User $user): void
+    {
+        if ($user->isAdmin()) {
+            return;
+        }
+        if (app(SpeakingAiSuspensionService::class)->isSuspended($user)) {
+            throw new HttpResponseException($this->speakingSuspendedJsonResponse($user));
+        }
+    }
+
+    private function speakingSuspendedJsonResponse(User $user): JsonResponse
+    {
+        $notice = trim((string) ($user->speaking_ai_suspension_notice ?? ''));
+        if ($notice === '') {
+            $notice = (string) config(
+                'exam_access.speaking_ai_suspension_notice',
+                'Speaking practice was disabled on your account because inappropriate or abusive language was detected.'
+            );
+        }
+
+        return response()->json([
+            'message' => $notice,
+            'code' => 'speaking_ai_suspended',
+            'speaking_ai_suspension_notice' => $notice,
+        ], 403);
     }
 
     private function authorizeAttempt(Request $request, Attempt $attempt): void

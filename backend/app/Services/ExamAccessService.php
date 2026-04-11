@@ -71,7 +71,7 @@ class ExamAccessService
     }
 
     /**
-     * @return null|'guest_section'|'speaking_limit'|'practice_mode_guest'
+     * @return null|'guest_section'|'speaking_limit'|'practice_mode_guest'|'speaking_ai_suspended'
      */
     public function denyStartReason(Test $test, ?User $user): ?string
     {
@@ -89,6 +89,10 @@ class ExamAccessService
             }
 
             return null;
+        }
+
+        if (strcasecmp($section, 'Speaking') === 0 && ! $user->isAdmin() && app(SpeakingAiSuspensionService::class)->isSuspended($user)) {
+            return 'speaking_ai_suspended';
         }
 
         if ($this->hasUnlimitedSpeaking($user)) {
@@ -119,6 +123,10 @@ class ExamAccessService
                 ? 'Speaking tests require Pro access on this site.'
                 : 'You have used all free Speaking attempts for your account. Upgrade to Pro for unlimited Speaking.',
             'practice_mode_guest' => 'Sign in to access this test mode.',
+            'speaking_ai_suspended' => (string) config(
+                'exam_access.speaking_ai_suspension_notice',
+                'Speaking practice was disabled on your account because inappropriate or abusive language was detected. See your profile for details.'
+            ),
             default => 'You cannot start this test.',
         };
     }
@@ -129,6 +137,7 @@ class ExamAccessService
             'guest_section' => 'guest_section_denied',
             'speaking_limit' => 'speaking_limit_reached',
             'practice_mode_guest' => 'auth_required',
+            'speaking_ai_suspended' => 'speaking_ai_suspended',
             default => 'forbidden',
         };
     }
