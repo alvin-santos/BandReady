@@ -221,7 +221,7 @@ export default function ExamPage() {
     if (authLoading) {
       return;
     }
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setExamRailAds(emptyExamRailAds);
       return;
     }
@@ -248,7 +248,7 @@ export default function ExamPage() {
     return () => {
       cancelled = true;
     };
-  }, [isSubscribed, authLoading]);
+  }, [isSubscribed, isAdmin, authLoading]);
 
   useEffect(() => {
     if (!questions.length || !attempt?.forward_only) {
@@ -459,10 +459,10 @@ export default function ExamPage() {
         paused={paused}
         onTogglePause={strictMode ? undefined : () => setPaused((p) => !p)}
         leftRailExtra={
-          isSubscribed ? null : <AdSlot location="exam_rail_left" ad={examRailAds.exam_rail_left} />
+          isSubscribed && !isAdmin ? null : <AdSlot location="exam_rail_left" ad={examRailAds.exam_rail_left} />
         }
         rightRailExtra={
-          isSubscribed ? null : <AdSlot location="exam_rail_right" ad={examRailAds.exam_rail_right} />
+          isSubscribed && !isAdmin ? null : <AdSlot location="exam_rail_right" ad={examRailAds.exam_rail_right} />
         }
       >
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">

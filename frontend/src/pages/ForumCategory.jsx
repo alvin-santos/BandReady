@@ -27,7 +27,7 @@ function formatThreadDate(iso) {
 export default function ForumCategory() {
   const { categoryId } = useParams();
   const navigate = useNavigate();
-  const { user, isSubscribed } = useAuth();
+  const { user, isSubscribed, isAdmin } = useAuth();
   const verified = !!user?.email_verified;
   const [payload, setPayload] = useState(null);
   const [page, setPage] = useState(1);
@@ -42,7 +42,7 @@ export default function ForumCategory() {
   const [sidebarAd, setSidebarAd] = useState(null);
 
   useEffect(() => {
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setLeaderboardAd(null);
       setCategoryInlineAd(null);
       setSidebarAd(null);
@@ -63,7 +63,7 @@ export default function ForumCategory() {
     return () => {
       cancelled = true;
     };
-  }, [isSubscribed]);
+  }, [isSubscribed, isAdmin]);
 
   useEffect(() => {
     let cancelled = false;

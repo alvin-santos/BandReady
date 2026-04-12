@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { pickAd } from '../utils/pickAd.js';
 
 export default function Forum() {
-  const { isSubscribed } = useAuth();
+  const { isSubscribed, isAdmin } = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -15,7 +15,7 @@ export default function Forum() {
   const [indexInlineAd, setIndexInlineAd] = useState(null);
 
   useEffect(() => {
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setLeaderboardAd(null);
       setIndexInlineAd(null);
       return;
@@ -33,7 +33,7 @@ export default function Forum() {
     return () => {
       cancelled = true;
     };
-  }, [isSubscribed]);
+  }, [isSubscribed, isAdmin]);
 
   useEffect(() => {
     let cancelled = false;

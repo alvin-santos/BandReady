@@ -51,7 +51,7 @@ function iconForTestSection(sectionName) {
 }
 
 export default function ExamStart() {
-  const { user, isSubscribed, refresh } = useAuth();
+  const { user, isSubscribed, isAdmin, refresh } = useAuth();
   const [search] = useSearchParams();
   const navigate = useNavigate();
   const [exams, setExams] = useState([]);
@@ -82,7 +82,7 @@ export default function ExamStart() {
             setExamId(String(found.id));
           }
         }
-        if (!isSubscribed) {
+        if (!isSubscribed || isAdmin) {
           const aRes = await api.get('/ads');
           if (!cancelled) {
             setAds(aRes.data || []);
@@ -99,7 +99,7 @@ export default function ExamStart() {
     return () => {
       cancelled = true;
     };
-  }, [examParam, isSubscribed]);
+  }, [examParam, isSubscribed, isAdmin]);
 
   useEffect(() => {
     refresh();

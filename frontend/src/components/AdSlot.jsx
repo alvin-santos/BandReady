@@ -33,11 +33,11 @@ const SIZES = {
  * @param {'default' | 'forum'} [props.surface] - forum pages use flatter slots matching the board UI
  */
 export default function AdSlot({ location, ad, surface = 'default' }) {
-  const { isSubscribed } = useAuth();
+  const { isSubscribed, isAdmin } = useAuth();
   const spec = SIZES[location] || { minHeight: 100, maxWidth: '100%', label: 'Ad' };
 
-  /** Pro accounts never load third-party / house creatives; show a tiny note so layout is visible. */
-  if (isSubscribed) {
+  /** Pro accounts never load third-party / house creatives; admins always see slots (e.g. to verify AdSense tags). */
+  if (isSubscribed && !isAdmin) {
     const mw = spec.maxWidth === '100%' ? '100%' : spec.maxWidth;
     return (
       <div className={`ad-slot mb-3${surface === 'forum' ? ' ad-slot--forum' : ''}`}>

@@ -13,7 +13,7 @@ const practiceModes = [
 ];
 
 export default function Rankings() {
-  const { user, isSubscribed, loading: authLoading } = useAuth();
+  const { user, isSubscribed, isAdmin, loading: authLoading } = useAuth();
   const [adA, setAdA] = useState(null);
   const [adB, setAdB] = useState(null);
   const [exams, setExams] = useState([]);
@@ -64,7 +64,7 @@ export default function Rankings() {
     if (authLoading) {
       return;
     }
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setAdA(null);
       setAdB(null);
       return;
@@ -91,7 +91,7 @@ export default function Rankings() {
     return () => {
       cancelled = true;
     };
-  }, [isSubscribed, authLoading]);
+  }, [isSubscribed, isAdmin, authLoading]);
 
   const filterSummary = useMemo(() => {
     const ex = exams.find((e) => e.code === examCode);

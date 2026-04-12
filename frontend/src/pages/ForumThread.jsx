@@ -51,7 +51,7 @@ function ForumPost({ postNumber, authorName, createdAt, body, isOp }) {
 
 export default function ForumThread() {
   const { threadId } = useParams();
-  const { user, isSubscribed } = useAuth();
+  const { user, isSubscribed, isAdmin } = useAuth();
   const verified = !!user?.email_verified;
   const [thread, setThread] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +64,7 @@ export default function ForumThread() {
   const [threadInlineAd, setThreadInlineAd] = useState(null);
 
   useEffect(() => {
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setLeaderboardAd(null);
       setSidebarAd(null);
       setThreadInlineAd(null);
@@ -85,7 +85,7 @@ export default function ForumThread() {
     return () => {
       cancelled = true;
     };
-  }, [isSubscribed]);
+  }, [isSubscribed, isAdmin]);
 
   function load() {
     setLoading(true);

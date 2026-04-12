@@ -69,14 +69,14 @@ const features = [
 ];
 
 export default function Home() {
-  const { user, isSubscribed } = useAuth();
+  const { user, isSubscribed, isAdmin } = useAuth();
   const [topAd, setTopAd] = useState(null);
   const [exams, setExams] = useState([]);
   const [examsLoading, setExamsLoading] = useState(true);
   const [examsError, setExamsError] = useState(null);
 
   useEffect(() => {
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setTopAd(null);
       return;
     }
@@ -84,7 +84,7 @@ export default function Home() {
       const list = res.data || [];
       setTopAd(list.find((a) => a.active) || list[0] || null);
     });
-  }, [isSubscribed]);
+  }, [isSubscribed, isAdmin]);
 
   useEffect(() => {
     let cancelled = false;

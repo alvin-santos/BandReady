@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { pickAdFromResponse } from '../utils/pickAdFromResponse.js';
 
 export default function Resources() {
-  const { user, isSubscribed, loading: authLoading } = useAuth();
+  const { user, isSubscribed, isAdmin, loading: authLoading } = useAuth();
   const [adA, setAdA] = useState(null);
   const [adB, setAdB] = useState(null);
   const [list, setList] = useState([]);
@@ -44,7 +44,7 @@ export default function Resources() {
     if (authLoading) {
       return;
     }
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setAdA(null);
       setAdB(null);
       return;
@@ -71,7 +71,7 @@ export default function Resources() {
     return () => {
       cancelled = true;
     };
-  }, [isSubscribed, authLoading]);
+  }, [isSubscribed, isAdmin, authLoading]);
 
   async function handleDownload(slug, title) {
     setDlErr('');

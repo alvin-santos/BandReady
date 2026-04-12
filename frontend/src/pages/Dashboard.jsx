@@ -7,14 +7,14 @@ import AdSlot from '../components/AdSlot.jsx';
 import ReadinessCard from '../components/ReadinessCard.jsx';
 
 export default function Dashboard() {
-  const { user, isSubscribed } = useAuth();
+  const { user, isSubscribed, isAdmin } = useAuth();
   const [data, setData] = useState(null);
   const [active, setActive] = useState(null);
   const [err, setErr] = useState('');
   const [dashboardAd, setDashboardAd] = useState(null);
 
   useEffect(() => {
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setDashboardAd(null);
       return;
     }
@@ -22,7 +22,7 @@ export default function Dashboard() {
       const list = res.data || [];
       setDashboardAd(list.find((a) => a.active) || list[0] || null);
     });
-  }, [isSubscribed]);
+  }, [isSubscribed, isAdmin]);
 
   useEffect(() => {
     if (!user) {

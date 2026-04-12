@@ -176,14 +176,14 @@ function GuestAccountCta() {
 
 export default function Results() {
   const { id } = useParams();
-  const { user, isSubscribed, loading: authLoading } = useAuth();
+  const { user, isSubscribed, isAdmin, loading: authLoading } = useAuth();
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(true);
   const [adA, setAdA] = useState(null);
   const [adB, setAdB] = useState(null);
 
   useEffect(() => {
-    if (isSubscribed) {
+    if (isSubscribed && !isAdmin) {
       setAdA(null);
       setAdB(null);
       return;
@@ -200,7 +200,7 @@ export default function Results() {
       setAdA(pick(ra));
       setAdB(pick(rb));
     })();
-  }, [isSubscribed]);
+  }, [isSubscribed, isAdmin]);
 
   useEffect(() => {
     let cancelled = false;
