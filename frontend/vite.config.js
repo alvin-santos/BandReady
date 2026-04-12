@@ -3,15 +3,19 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  preview: {
+    host: true,
+    port: Number(process.env.PORT) || 4173,
+  },
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8080',
+        target: 'https://bandready.onrender.com',
         changeOrigin: true,
       },
       '/storage': {
-        target: 'http://127.0.0.1:8080',
+        target: 'https://bandready.onrender.com',
         changeOrigin: true,
       },
     },
