@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Container, Form, Row, Col, Alert } from 'react-bootstrap';
+import { Alert, Button, Col, Container, Form, Row, Spinner } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -11,15 +11,19 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [err, setErr] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
     setErr('');
+    setSubmitting(true);
     try {
       await register({ name, email, password, password_confirmation: passwordConfirmation });
       navigate('/verify-email');
     } catch (ex) {
       setErr(ex.response?.data?.message || 'Registration failed.');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -83,9 +87,22 @@ export default function Register() {
                   required
                 />
               </Form.Group>
-              <Button type="submit" className="w-100 d-inline-flex align-items-center justify-content-center gap-2">
-                <i className="bi bi-check-lg" aria-hidden />
-                Sign up
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="w-100 d-inline-flex align-items-center justify-content-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Spinner animation="border" size="sm" role="status" aria-hidden />
+                    Signing up…
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-check-lg" aria-hidden />
+                    Sign up
+                  </>
+                )}
               </Button>
             </Form>
             <p className="small text-muted mt-3 mb-0 d-flex align-items-center gap-2">
