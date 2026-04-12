@@ -6,6 +6,8 @@ export default defineConfig({
   preview: {
     host: true,
     port: Number(process.env.PORT) || 4173,
+    // Render (and other proxies) send a public Host header; Vite blocks unknown hosts by default.
+    allowedHosts: true,
   },
   server: {
     port: 5173,
