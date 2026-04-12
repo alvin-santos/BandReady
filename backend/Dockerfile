@@ -47,8 +47,9 @@ COPY . .
 COPY --from=assets /app/public/build ./public/build
 
 RUN cp .env.example .env \
+    && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts \
     && php artisan key:generate --force --no-interaction \
-    && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
+    && php artisan package:discover --ansi --no-interaction \
     && rm -f .env \
     && mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache/data storage/logs bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
