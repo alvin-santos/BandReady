@@ -51,9 +51,10 @@ RUN cp .env.example .env \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
     && rm -f .env \
     && mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache/data storage/logs bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+    && chmod -R 775 storage bootstrap/cache \
+    && chmod +x docker-entrypoint.sh
 
 EXPOSE 8000
 
-# Render sets PORT; default matches local `docker run -p 8000:8000`
-CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+# Migrations and seeding need a reachable DB, so they run at container start (not during image build).
+ENTRYPOINT ["./docker-entrypoint.sh"]
