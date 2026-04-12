@@ -13,11 +13,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://bandready.onrender.com',
+        target: 'https://api.band-ready.com',
         changeOrigin: true,
       },
       '/storage': {
-        target: 'https://bandready.onrender.com',
+        target: 'https://api.band-ready.com',
         changeOrigin: true,
       },
     },
