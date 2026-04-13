@@ -1370,4 +1370,174 @@ MSG;
             ]],
         ];
     }
+
+    /**
+     * Same pipeline as {@see \App\Console\Commands\OpenAiGenerateQuestionnaireCommand} (generate, validate, import).
+     *
+     * @param  array{
+     *   file_path?: string|null,
+     *   file_content?: string|null,
+     *   extra_prompt?: string,
+     *   model?: string|null,
+     *   questions_per_test?: int|null,
+     *   section?: array<int, string>|string|null,
+     *   exam_title?: string,
+     *   test_title?: string,
+     *   dry_run?: bool,
+     *   no_question_preview?: bool,
+     *   with_speaking_images?: bool
+     * } $opts
+     * @return array{code: int, payload?: array|null}
+     */
+    public function runPipeline(OutputInterface $output, array $opts): array
+    {
+        $fail = static function (string $message) use ($output): array {
+            $output->writeln('ERROR: '.$message);
+
+            return ['code' => 1];
+        };
+
+        $filePath = isset($opts['file_path']) ? trim((string) $opts['file_path']) : '';
+        $fileContent = isset($opts['file_content']) ? (string) $opts['file_content'] : '';
+        $extra = trim((string) ($opts['extra_prompt'] ?? ''));
+        $model = $opts['model'] ?? null;
+        $model = is_string($model) && $model !== '' ? $model : null;
+        $questionsPerTestInt = $opts['questions_per_test'] ?? null;
+        if ($questionsPerTestInt !== null && (! is_int($questionsPerTestInt) || $questionsPerTestInt < 1)) {
+            return $fail('--questions-per-test must be a positive integer.');
+        }
+
+        /** @var list<string>|string|null $sectionOpt */
+        $sectionOpt = $opts['section'] ?? null;
+        $onlySections = null;
+        try {
+            $onlySections = $this->parseSectionOption($sectionOpt);
+        } catch (InvalidArgumentException $e) {
+            return $fail($e->getMessage());
+        }
+        if (is_array($onlySections) && $onlySections !== []) {
+            $output->writeln('Section filter (OpenAI only): '.implode(', ', $onlySections));
+        }
+
+        $examTitle = trim((string) ($opts['exam_title'] ?? ''));
+        $testTitle = trim((string) ($opts['test_title'] ?? ''));
+        $existingTarget = null;
+        if ($examTitle !== '' || $testTitle !== '') {
+            if ($examTitle === '' || $testTitle === '') {
+                return $fail('When targeting an existing test, provide both exam_title and test_title (or omit both for a new hierarchy).');
+            }
+            $preferredSectionForNewTest = is_array($onlySections) && count($onlySections) === 1
+                ? $onlySections[0]
+                : null;
+            try {
+                $existingTarget = $this->resolveExistingExamAndTestByTitles($examTitle, $testTitle, $preferredSectionForNewTest);
+            } catch (InvalidArgumentException $e) {
+                return $fail($e->getMessage());
+            }
+            $ex = $existingTarget['exam'];
+            $te = $existingTarget['test'];
+            if ($te->wasRecentlyCreated) {
+                $output->writeln("Created new test #{$te->id} \"{$te->title}\" under section \"{$te->section->name}\" on exam \"{$ex->name}\" ({$ex->code}).");
+            } else {
+                $output->writeln("Existing target: exam \"{$ex->name}\" ({$ex->code}), test #{$te->id} \"{$te->title}\" ({$te->section->name})");
+            }
+        }
+
+        if ($existingTarget !== null && is_array($onlySections) && $onlySections !== []) {
+            $te = $existingTarget['test'];
+            if ($te->wasRecentlyCreated) {
+                if (count($onlySections) > 1) {
+                    $output->writeln('WARNING: --section: multiple values were given; the new test was placed using the exam\'s first section by sort order (pass exactly one section=Name to choose a section).');
+                }
+            } else {
+                $output->writeln('WARNING: --section is ignored when the test already exists (section comes from the existing test).');
+            }
+        }
+
+        $onlySectionsForOpenAi = $existingTarget !== null ? null : $onlySections;
+
+        $withSpeakingImages = (bool) ($opts['with_speaking_images'] ?? false);
+        if ($withSpeakingImages) {
+            $speakingScoped = $this->sectionScopeIncludesSpeaking($onlySections, $existingTarget);
+            if (! $speakingScoped) {
+                $output->writeln('WARNING: --with-speaking-images ignored: scope does not include Speaking (use section=Speaking or target a Speaking test).');
+                $withSpeakingImages = false;
+            } else {
+                $output->writeln('Speaking picture tasks: model will output image_generation_prompt + grading text; images generated after import.');
+            }
+        }
+
+        $dryRun = (bool) ($opts['dry_run'] ?? false);
+        $noQuestionPreview = (bool) ($opts['no_question_preview'] ?? false);
+
+        try {
+            if ($filePath !== '') {
+                if (! is_readable($filePath)) {
+                    return $fail("File not readable: {$filePath}");
+                }
+                $raw = file_get_contents($filePath);
+                if ($raw === false) {
+                    return $fail("Could not read: {$filePath}");
+                }
+                $payload = $this->decodePayloadJson($raw);
+                $output->writeln('Loaded JSON from file: '.$filePath);
+                if ($questionsPerTestInt !== null) {
+                    $output->writeln('WARNING: --questions-per-test applies only when generating via OpenAI; ignored for --file.');
+                }
+                if ($onlySections !== null && $onlySections !== []) {
+                    $output->writeln('WARNING: --section applies only when generating via OpenAI; ignored for --file.');
+                }
+                if ($existingTarget !== null) {
+                    $payload = $this->mergePayloadOntoExistingTest($payload, $existingTarget['exam'], $existingTarget['test']);
+                    $output->writeln('Anchored file JSON to existing exam/test (DB metadata + questions from file).');
+                }
+            } elseif (trim($fileContent) !== '') {
+                $payload = $this->decodePayloadJson($fileContent);
+                $output->writeln('Loaded JSON from request body (import mode).');
+                if ($questionsPerTestInt !== null) {
+                    $output->writeln('WARNING: questions_per_test applies only when generating via OpenAI; ignored for file JSON.');
+                }
+                if ($onlySections !== null && $onlySections !== []) {
+                    $output->writeln('WARNING: section filter applies only when generating via OpenAI; ignored for file JSON.');
+                }
+                if ($existingTarget !== null) {
+                    $payload = $this->mergePayloadOntoExistingTest($payload, $existingTarget['exam'], $existingTarget['test']);
+                    $output->writeln('Anchored file JSON to existing exam/test (DB metadata + questions from file).');
+                }
+            } else {
+                if ($extra !== '') {
+                    $output->writeln('Extra prompt: '.$extra);
+                }
+                $payload = $this->generatePayload($extra, $model, $output, $questionsPerTestInt, $onlySectionsForOpenAi, $existingTarget, $withSpeakingImages);
+            }
+
+            $output->writeln('Validating payload structure…');
+            $this->validatePayload($payload);
+            $examN = count($payload['exams']);
+            $output->writeln("Payload OK: {$examN} exam(s) in response.");
+        } catch (InvalidArgumentException $e) {
+            return $fail($e->getMessage());
+        }
+
+        if ($dryRun) {
+            $output->writeln('Dry run — printing JSON only; database unchanged.');
+            if ($withSpeakingImages) {
+                $output->writeln('Note: with_speaking_images would run image generation after import; skipped in dry-run.');
+            }
+            $output->writeln(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+            return ['code' => 0, 'payload' => $payload];
+        }
+
+        try {
+            $this->importPayload($payload, $output, ! $noQuestionPreview, $withSpeakingImages);
+        } catch (InvalidArgumentException $e) {
+            return $fail($e->getMessage());
+        }
+
+        $count = count($payload['exams']);
+        $output->writeln("Done. Processed {$count} exam(s); questions were appended where tests already existed.");
+
+        return ['code' => 0, 'payload' => null];
+    }
 }

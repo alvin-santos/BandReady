@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\AdminAdController;
 use App\Http\Controllers\Api\Admin\AdminContactMessageController;
 use App\Http\Controllers\Api\Admin\AdminDownloadableController;
 use App\Http\Controllers\Api\Admin\AdminExamController;
+use App\Http\Controllers\Api\Admin\AdminOpenAiQuestionnaireController;
 use App\Http\Controllers\Api\Admin\AdminQuestionController;
 use App\Http\Controllers\Api\Admin\AdminRankingSettingsController;
 use App\Http\Controllers\Api\Admin\AdminSectionController;
@@ -123,6 +124,8 @@ Route::middleware(['auth:sanctum', 'verified', 'admin'])->prefix('admin')->group
     Route::post('/tests', [AdminTestController::class, 'store']);
     Route::put('/tests/{id}', [AdminTestController::class, 'update'])->whereNumber('id');
     Route::delete('/tests/{id}', [AdminTestController::class, 'destroy'])->whereNumber('id');
+
+    Route::post('/openai-questionnaire/run', [AdminOpenAiQuestionnaireController::class, 'run']);
 
     Route::get('/questions', [AdminQuestionController::class, 'index']);
     Route::post('/questions/import', [AdminQuestionController::class, 'import']);

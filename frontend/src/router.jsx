@@ -34,6 +34,7 @@ import Rankings from './pages/Rankings.jsx';
 import AdminRanking from './pages/AdminRanking.jsx';
 import AdminTtsVoices from './pages/AdminTtsVoices.jsx';
 import AdminContactMessages from './pages/AdminContactMessages.jsx';
+import AdminOpenAiQuestionnaire from './pages/AdminOpenAiQuestionnaire.jsx';
 
 function Private({ children }) {
   const { user, loading } = useAuth();
@@ -151,6 +152,7 @@ export const router = createBrowserRouter([
           { path: 'sections', element: <AdminSections /> },
           { path: 'tests', element: <AdminTests /> },
           { path: 'questions', element: <AdminQuestions /> },
+          { path: 'openai-questionnaire', element: <AdminOpenAiQuestionnaire /> },
           { path: 'ads', element: <AdminAds /> },
           { path: 'stats', element: <AdminStats /> },
           { path: 'ranking-settings', element: <AdminRanking /> },

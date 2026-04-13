@@ -3,6 +3,7 @@ import { Col, Container, Row, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import AdSlot from '../components/AdSlot.jsx';
+import HomeFloatingFeatureCards from '../components/HomeFloatingFeatureCards.jsx';
 import PracticeDisclaimerCallout from '../components/PracticeDisclaimerCallout.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -51,8 +52,8 @@ function descriptionForExam(exam) {
 
 const features = [
   {
-    icon: 'bi-fullscreen',
-    text: 'Fullscreen timed tests with optional strict timer and forward-only navigation.',
+    icon: 'bi-window-fullscreen',
+    text: 'Full exams run in the browser—no PDF packs or downloads; optional strict timer and forward-only navigation.',
   },
   {
     icon: 'bi-volume-up-fill',
@@ -113,25 +114,34 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="br-gradient-hero">
+    <div className="br-gradient-hero br-home-landing">
       <Container className="py-5">
         <Row className="align-items-center py-lg-5">
-          <Col lg={7}>
-            <p className="text-uppercase small fw-semibold text-br-rose mb-2 d-flex align-items-center gap-2">
-              <i className="bi bi-award-fill" aria-hidden />
-              Exam simulation
+          <Col lg={7} className="position-relative">
+            <div className="br-home-hero-blobs" aria-hidden>
+              <span className="br-home-hero-blob br-home-hero-blob--a" />
+              <span className="br-home-hero-blob br-home-hero-blob--b" />
+              <span className="br-home-hero-blob br-home-hero-blob--c" />
+            </div>
+            <p className="br-home-eyebrow text-uppercase small fw-semibold mb-2 d-inline-flex align-items-center gap-2">
+              <i className="bi bi-window-desktop" aria-hidden />
+              In-browser exam simulation
             </p>
             <h1 className="display-5 fw-bold mb-3">
-              Practice{' '}
-              <span className="text-br-rose">IELTS &amp; CELPIP</span> in a calm, test-day interface.
+              <span className="text-br-rose">IELTS &amp; CELPIP</span> practice that{' '}
+              <span className="text-body">feels like the actual exam</span>—in your browser.
             </h1>
             <p className="lead text-muted mb-3">
               {user ? (
-                <>Timers, audio, passages, autosave, and scoring—built for focused practice.</>
+                <>
+                  Timed sections, audio, navigation, autosave, and scoring in one on-screen flow—built so rehearsal
+                  matches test-day rhythm and pressure more than a PDF ever could.
+                </>
               ) : (
                 <>
-                  <strong className="text-body">Try a quick test first</strong> — no sign-up needed. Timers, audio,
-                  passages, autosave, and scoring for focused practice.
+                  <strong className="text-body">No exam PDFs or installs</strong>—run the same kind of timed,
+                  full-screen flow you will face on test day. Guests can try Reading and Writing with no account; sign in
+                  for Listening, Speaking, and saved progress.
                 </>
               )}
             </p>
@@ -139,7 +149,7 @@ export default function Home() {
               <p className="small fw-semibold mb-3 d-flex flex-wrap align-items-center gap-2">
                 <span className="br-home-quick-badge badge rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2">
                   <i className="bi bi-lightning-charge-fill" aria-hidden />
-                  Quick test · no account required
+                  Live in-browser · no download for guests
                 </span>
               </p>
             )}
@@ -174,9 +184,12 @@ export default function Home() {
             )}
           </Col>
           <Col lg={5} className="mt-4 mt-lg-0">
-            <div className="br-card br-home-feature-card p-3">
-              <h2 className="h6 fw-bold mb-2 d-flex align-items-center gap-2">
-                <i className="bi bi-stars text-br-rose" aria-hidden />
+            <div className="br-card br-home-feature-card br-home-feature-card--accent p-3 position-relative overflow-hidden">
+              <div className="br-home-feature-card-deco" aria-hidden />
+              <h2 className="h6 fw-bold mb-2 d-flex align-items-center gap-2 position-relative">
+                <span className="br-home-feature-title-icon d-inline-flex align-items-center justify-content-center">
+                  <i className="bi bi-stars" aria-hidden />
+                </span>
                 Why <span className="text-br-rose">BandReady</span>
               </h2>
               <ul className="list-unstyled mb-0 text-muted br-home-feature-list">
@@ -202,14 +215,27 @@ export default function Home() {
           </Col>
         </Row>
 
+        <HomeFloatingFeatureCards />
+
         <div className="mb-4">
           <AdSlot location="top_banner" ad={topAd} />
         </div>
 
-        <h2 className="h4 fw-bold mb-4 d-flex align-items-center gap-2">
-          <i className="bi bi-ui-checks-grid text-br-rose" aria-hidden />
-          Choose your <span className="text-br-rose">exam</span>
-        </h2>
+        <div className="br-home-section-heading d-flex flex-wrap align-items-center gap-3 mb-4">
+          <h2 className="h4 fw-bold mb-0 d-flex align-items-center gap-2">
+            <span className="br-home-section-icon d-inline-flex align-items-center justify-content-center">
+              <i className="bi bi-ui-checks-grid" aria-hidden />
+            </span>
+            Choose your <span className="text-br-rose">exam</span>
+          </h2>
+          <div className="br-home-section-dots d-none d-sm-flex gap-1 align-items-center" aria-hidden>
+            <span className="br-home-section-dot br-home-section-dot--rose" />
+            <span className="br-home-section-dot br-home-section-dot--blue" />
+            <span className="br-home-section-dot br-home-section-dot--amber" />
+            <span className="br-home-section-dot br-home-section-dot--violet" />
+            <span className="br-home-section-dot br-home-section-dot--teal" />
+          </div>
+        </div>
         {examsError && (
           <p className="text-danger small mb-3" role="alert">
             {examsError}{' '}
@@ -233,17 +259,21 @@ export default function Home() {
         )}
         {!examsLoading && exams.length > 0 && (
           <Row className="g-4 mb-5 justify-content-center">
-            {exams.filter((e) => String(e.code || '').trim()).map((exam) => {
+            {exams.filter((e) => String(e.code || '').trim()).map((exam, examIdx) => {
               const code = String(exam.code || '').trim();
               const name = String(exam.name || code || 'Exam').trim();
+              const tint = examIdx % 6;
               return (
                 <Col xs={12} sm={6} lg={4} xl={3} key={exam.id ?? code}>
                   <Link
                     to={`/exam/start?exam=${encodeURIComponent(code)}`}
                     className="text-decoration-none text-reset d-block h-100"
                   >
-                    <div className="br-card br-card-hover p-4 h-100 position-relative">
-                      <div className="d-flex justify-content-between align-items-start">
+                    <div
+                      className={`br-card br-card-hover br-exam-card-shell br-exam-card-shell--c${tint} p-4 h-100 position-relative overflow-hidden`}
+                    >
+                      <div className="br-exam-card-glow" aria-hidden />
+                      <div className="d-flex justify-content-between align-items-start position-relative">
                         <i className={`bi ${iconForExam(exam)} br-exam-card-icon`} aria-hidden />
                         <i className="bi bi-chevron-right text-muted small opacity-50" aria-hidden />
                       </div>

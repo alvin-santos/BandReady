@@ -7,6 +7,7 @@ const links = [
   { to: '/admin/sections', label: 'Sections', icon: 'bi-layout-three-columns' },
   { to: '/admin/tests', label: 'Tests', icon: 'bi-journal-text' },
   { to: '/admin/questions', label: 'Questions', icon: 'bi-patch-question' },
+  { to: '/admin/openai-questionnaire', label: 'AI generate', icon: 'bi-robot' },
   { to: '/admin/tts-voices', label: 'TTS voices', icon: 'bi-mic' },
   { to: '/admin/ads', label: 'Advertisements', icon: 'bi-badge-ad' },
   { to: '/admin/stats', label: 'Analytics', icon: 'bi-graph-up-arrow' },
