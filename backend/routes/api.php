@@ -1,33 +1,34 @@
 <?php
 
-use App\Http\Controllers\Api\AdPublicController;
 use App\Http\Controllers\Api\Admin\AdminAdController;
+use App\Http\Controllers\Api\Admin\AdminContactMessageController;
+use App\Http\Controllers\Api\Admin\AdminDownloadableController;
 use App\Http\Controllers\Api\Admin\AdminExamController;
 use App\Http\Controllers\Api\Admin\AdminQuestionController;
+use App\Http\Controllers\Api\Admin\AdminRankingSettingsController;
 use App\Http\Controllers\Api\Admin\AdminSectionController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\AdminTestController;
-use App\Http\Controllers\Api\Admin\AdminDownloadableController;
+use App\Http\Controllers\Api\Admin\AdminTtsVoiceSettingsController;
+use App\Http\Controllers\Api\AdPublicController;
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AttemptController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\Admin\AdminContactMessageController;
-use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\ContactMessageController;
-use App\Http\Controllers\Api\SiteTrafficController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DownloadablePublicController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\ForumController;
-use App\Http\Controllers\Api\MistakesHubController;
-use App\Http\Controllers\Api\Admin\AdminRankingSettingsController;
-use App\Http\Controllers\Api\Admin\AdminTtsVoiceSettingsController;
-use App\Http\Controllers\Api\PublicRankingController;
-use App\Http\Controllers\Api\TtsVoiceSettingsController;
-use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\IeltsSpeakingAiController;
+use App\Http\Controllers\Api\MistakesHubController;
+use App\Http\Controllers\Api\PublicRankingController;
+use App\Http\Controllers\Api\ResultController;
+use App\Http\Controllers\Api\SiteTrafficController;
 use App\Http\Controllers\Api\SpeakingTranscriptionController;
+use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TestController;
+use App\Http\Controllers\Api\TtsVoiceSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/exams', [ExamController::class, 'index']);
@@ -48,6 +49,9 @@ Route::post('/contact-messages', [ContactMessageController::class, 'store'])
     ->middleware('throttle:10,1');
 
 Route::post('/site-traffic/visit', [SiteTrafficController::class, 'store'])
+    ->middleware('throttle:120,1');
+
+Route::post('/subscription/webhook', StripeWebhookController::class)
     ->middleware('throttle:120,1');
 
 Route::get('/tts-voice-settings', [TtsVoiceSettingsController::class, 'publicIndex']);
@@ -75,6 +79,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/email/resend-verification', [AuthController::class, 'resendVerificationEmail'])
         ->middleware('throttle:6,1');
+    /** Pricing / Stripe flags — any signed-in user (verified not required). */
+    Route::get('/subscription/offer', [SubscriptionController::class, 'offer']);
 });
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
@@ -82,6 +88,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'summary']);
     Route::get('/profile/stats', [DashboardController::class, 'profileStats']);
     Route::get('/attempts/active', [AttemptController::class, 'active']);
+    Route::post('/subscription/checkout-session', [SubscriptionController::class, 'createCheckoutSession'])
+        ->middleware('throttle:12,1');
+    Route::post('/subscription/verify-checkout-session', [SubscriptionController::class, 'verifyCheckoutSession'])
+        ->middleware('throttle:30,1');
     Route::post('/subscription/simulate-checkout', [SubscriptionController::class, 'simulateCheckout']);
     Route::get('/mistakes/hub', [MistakesHubController::class, 'show']);
     Route::get('/resources/{slug}/download', [DownloadablePublicController::class, 'download'])->where('slug', '[a-z0-9-]+');
