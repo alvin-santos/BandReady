@@ -4,13 +4,20 @@ import { api } from '../api/client.js';
 
 const SECTIONS = ['Listening', 'Reading', 'Writing', 'Speaking'];
 
-/** Defaults matching: `openai:generate-questionnaire --section=Listening --questions-per-test=10 --exam-title="CELPIP General" --test-title="Full mock — CELPIP General — Listening"` */
 const DEFAULT_SECTION_PICK = Object.fromEntries(
   SECTIONS.map((s) => [s, s === 'Listening'])
 );
-const DEFAULT_QUESTIONS_PER_TEST = '10';
+const DEFAULT_QUESTIONS_PER_TEST = '1';
 const DEFAULT_EXAM_TITLE = 'CELPIP General';
-const DEFAULT_TEST_TITLE = 'Full mock — CELPIP General — Listening';
+
+/** Suggested `--test-title`: "{exam} {Section…}" in canonical section order; no sections → "{exam} Multi". */
+function buildSuggestedTestTitle(examTitle, orderedSectionNames) {
+  const base = String(examTitle ?? '').trim() || 'CELPIP General';
+  if (!orderedSectionNames || orderedSectionNames.length === 0) {
+    return `${base} Multi`;
+  }
+  return `${base} ${orderedSectionNames.join(' ')}`;
+}
 
 function buildArtisanPreview(body) {
   const parts = ['php artisan openai:generate-questionnaire'];
@@ -50,11 +57,13 @@ function buildArtisanPreview(body) {
 }
 
 function initialFormState() {
+  const sectionPick = { ...DEFAULT_SECTION_PICK };
+  const ordered = SECTIONS.filter((s) => sectionPick[s]);
   return {
-    sectionPick: { ...DEFAULT_SECTION_PICK },
+    sectionPick,
     questionsPerTest: DEFAULT_QUESTIONS_PER_TEST,
     examTitle: DEFAULT_EXAM_TITLE,
-    testTitle: DEFAULT_TEST_TITLE,
+    testTitle: buildSuggestedTestTitle(DEFAULT_EXAM_TITLE, ordered),
     extraPrompt: '',
     model: '',
     dryRun: false,
@@ -92,7 +101,8 @@ export default function AdminOpenAiQuestionnaire() {
       model: model.trim() || undefined,
       dry_run: dryRun || undefined,
       no_question_preview: noQuestionPreview || undefined,
-      with_speaking_images: withSpeakingImages || undefined,
+      with_speaking_images:
+        selectedSections.includes('Speaking') && withSpeakingImages ? true : undefined,
       exam_title: examTitle.trim() || undefined,
       test_title: testTitle.trim() || undefined,
       file_json: fileJson.trim() || undefined,
@@ -177,6 +187,23 @@ export default function AdminOpenAiQuestionnaire() {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [lines]);
 
+  /** Keep `--test-title` in sync with `--exam-title` + `--section` (overwrites manual edits when those change). */
+  useEffect(() => {
+    setForm((prev) => {
+      const ordered = SECTIONS.filter((s) => prev.sectionPick[s]);
+      const next = {
+        ...prev,
+        testTitle: buildSuggestedTestTitle(prev.examTitle, ordered),
+      };
+      if (!ordered.includes('Speaking') && prev.withSpeakingImages) {
+        next.withSpeakingImages = false;
+      }
+      return next;
+    });
+  }, [examTitle, sectionPick]);
+
+  const showSpeakingImagesOption = selectedSections.includes('Speaking');
+
   return (
     <div>
       <h1 className="h3 fw-bold mb-1 d-flex align-items-center gap-2">
@@ -212,7 +239,7 @@ export default function AdminOpenAiQuestionnaire() {
             <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
               <h2 className="h6 fw-bold mb-0">Command options</h2>
               <Button variant="outline-secondary" size="sm" type="button" disabled={busy} onClick={() => setForm(initialFormState())}>
-                Reset to CELPIP Listening example
+                Reset to defaults
               </Button>
             </div>
             <p className="small text-muted mb-3">
@@ -270,6 +297,11 @@ export default function AdminOpenAiQuestionnaire() {
                     <code className="text-body">--test-title</code> — tests.title
                   </Form.Label>
                   <Form.Control value={testTitle} onChange={(e) => setField('testTitle', e.target.value)} />
+                  <Form.Text className="text-muted">
+                    Updates automatically from exam + checked sections (e.g. Speaking + CELPIP General →{' '}
+                    <strong className="text-body">CELPIP General Speaking</strong>). Changing exam or sections overwrites
+                    this field; you can still edit it before Run.
+                  </Form.Text>
                 </Form.Group>
               </Col>
             </Row>
@@ -361,21 +393,23 @@ export default function AdminOpenAiQuestionnaire() {
               />
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="checkbox"
-                id="speaking-img"
-                checked={withSpeakingImages}
-                onChange={(e) => setField('withSpeakingImages', e.target.checked)}
-                label={
-                  <span>
-                    <code className="text-body">--with-speaking-images</code> — after import, generate DALL·E scene images for
-                    speaking_prompt rows that include <code className="text-body">options_json.speaking.image_generation_prompt</code>{' '}
-                    (Speaking scope only; skipped on dry-run)
-                  </span>
-                }
-              />
-            </Form.Group>
+            {showSpeakingImagesOption && (
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="checkbox"
+                  id="speaking-img"
+                  checked={withSpeakingImages}
+                  onChange={(e) => setField('withSpeakingImages', e.target.checked)}
+                  label={
+                    <span>
+                      <code className="text-body">--with-speaking-images</code> — after import, generate DALL·E scene images for
+                      speaking_prompt rows that include <code className="text-body">options_json.speaking.image_generation_prompt</code>{' '}
+                      (skipped on dry-run)
+                    </span>
+                  }
+                />
+              </Form.Group>
+            )}
 
             <Button variant="primary" className="me-2" disabled={busy} onClick={() => void run()}>
               {busy ? (
