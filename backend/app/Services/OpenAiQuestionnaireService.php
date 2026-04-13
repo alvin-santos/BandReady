@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Console\Commands\OpenAiGenerateQuestionnaireCommand;
 use App\Models\Exam;
 use App\Models\Question;
 use App\Models\Section;
 use App\Models\Test;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
@@ -218,8 +220,55 @@ PROMPT;
     }
 
     /**
+     * Normalize display strings for comparison (Unicode dash variants, horizontal whitespace, NFKC).
+     * Reuses the same rules for exam names and test titles so CLI/API values match DB rows when only
+     * punctuation differs (e.g. em dash vs hyphen, NBSP vs space).
+     */
+    public function normalizeTitleForMatch(string $title): string
+    {
+        $t = trim($title);
+        $dashLike = ["\u{2013}", "\u{2014}", "\u{2015}", "\u{2212}", "\u{FE58}", "\u{FE63}", "\u{FF0D}"];
+        $t = str_replace($dashLike, '-', $t);
+        if (class_exists(\Normalizer::class)) {
+            $n = \Normalizer::normalize($t, \Normalizer::FORM_KC);
+            if (is_string($n)) {
+                $t = $n;
+            }
+        }
+        $t = preg_replace('/\h+/u', ' ', $t) ?? $t;
+
+        return trim($t);
+    }
+
+    /**
+     * @return Collection<int, Exam>
+     */
+    private function examsMatchingNormalizedName(string $examTitle): Collection
+    {
+        $needle = $this->normalizeTitleForMatch($examTitle);
+
+        return Exam::query()->get()->filter(
+            fn (Exam $e) => $this->normalizeTitleForMatch($e->name) === $needle
+        )->values();
+    }
+
+    /**
+     * @return Collection<int, Test>
+     */
+    private function testsMatchingNormalizedTitle(int $examId, string $testTitle): Collection
+    {
+        $needle = $this->normalizeTitleForMatch($testTitle);
+
+        return Test::query()->where('exam_id', $examId)->get()->filter(
+            fn (Test $t) => $this->normalizeTitleForMatch($t->title) === $needle
+        )->values();
+    }
+
+    /**
      * Resolve an exam by display name (`exams.name`) and a test by `tests.title` within that exam.
-     * If no row matches the title, creates a new `tests` record under the chosen section.
+     * Matching is **normalized** (dash/space variants) so an existing row is reused when the title is
+     * the same for humans even if bytes differ from the CLI string.
+     * If no row matches, creates a new `tests` record under the chosen section.
      *
      * @param  string|null  $preferredSectionNameForNewTest  When creating: section `name` on that exam (must exist). If null/empty, uses the exam's first section by `sort_order`, then `id`.
      * @return array{exam: Exam, test: Test}
@@ -232,27 +281,31 @@ PROMPT;
             throw new InvalidArgumentException('--exam-title and --test-title must both be non-empty when targeting an existing test.');
         }
 
-        $examCount = Exam::query()->where('name', $examTitle)->count();
-        if ($examCount === 0) {
-            throw new InvalidArgumentException("No exam found with name \"{$examTitle}\" (matches exams.name).");
+        $examMatches = $this->examsMatchingNormalizedName($examTitle);
+        if ($examMatches->isEmpty()) {
+            throw new InvalidArgumentException("No exam found with name \"{$examTitle}\" (matches exams.name, including dash/space-normalized comparison).");
         }
-        if ($examCount > 1) {
-            throw new InvalidArgumentException("Multiple exams share the name \"{$examTitle}\". Rename duplicates in the database or use a unique name.");
+        if ($examMatches->count() > 1) {
+            throw new InvalidArgumentException(
+                "Multiple exams match \"{$examTitle}\" after normalizing spaces and dashes. Rename or disambiguate in the database."
+            );
         }
         /** @var Exam $exam */
-        $exam = Exam::query()->where('name', $examTitle)->firstOrFail();
+        $exam = $examMatches->first();
 
-        $testQuery = Test::query()->where('exam_id', $exam->id)->where('title', $testTitle);
-        $testCount = $testQuery->count();
-        if ($testCount > 1) {
-            throw new InvalidArgumentException("Multiple tests titled \"{$testTitle}\" exist for this exam. Fix duplicate titles in the database.");
+        $testMatches = $this->testsMatchingNormalizedTitle($exam->id, $testTitle);
+        if ($testMatches->count() > 1) {
+            $ids = $testMatches->pluck('id')->implode(', ');
+            throw new InvalidArgumentException(
+                "Multiple tests match \"{$testTitle}\" for this exam after normalization (ids: {$ids}). Fix duplicate titles in the database."
+            );
         }
-        if ($testCount === 1) {
+        if ($testMatches->count() === 1) {
             /** @var Test $test */
-            $test = $testQuery->firstOrFail();
+            $test = $testMatches->first();
             $test->loadMissing('section');
             if ($test->section === null) {
-                throw new InvalidArgumentException("Test \"{$testTitle}\" has no section.");
+                throw new InvalidArgumentException("Test \"{$test->title}\" has no section.");
             }
 
             return ['exam' => $exam, 'test' => $test];
@@ -817,10 +870,14 @@ MSG;
                         }
 
                         $title = $testRow['title'];
-                        $test = Test::query()
-                            ->where('exam_id', $exam->id)
-                            ->where('title', $title)
-                            ->first();
+                        $testMatches = $this->testsMatchingNormalizedTitle($exam->id, (string) $title);
+                        if ($testMatches->count() > 1) {
+                            $ids = $testMatches->pluck('id')->implode(', ');
+                            throw new InvalidArgumentException(
+                                "Multiple tests match title \"{$title}\" for exam \"{$examRow['name']}\" after normalization (ids: {$ids})."
+                            );
+                        }
+                        $test = $testMatches->first();
 
                         $insertedTest = false;
                         if ($test === null) {
@@ -1111,16 +1168,16 @@ MSG;
             throw new InvalidArgumentException("Test \"{$testTitle}\" question #".($qi + 1).": invalid type \"{$type}\".");
         }
         if (empty($qRow['question_text']) || ! is_string($qRow['question_text'])) {
-            throw new InvalidArgumentException("Test \"{$testTitle}\" question #".($qi + 1).": question_text required.");
+            throw new InvalidArgumentException("Test \"{$testTitle}\" question #".($qi + 1).': question_text required.');
         }
         if (! array_key_exists('correct_answer', $qRow)) {
-            throw new InvalidArgumentException("Test \"{$testTitle}\" question #".($qi + 1).": correct_answer required.");
+            throw new InvalidArgumentException("Test \"{$testTitle}\" question #".($qi + 1).': correct_answer required.');
         }
 
         if ($type === 'multiple_choice') {
             $opts = $qRow['options_json'] ?? null;
             if (! is_array($opts) || count($opts) < 2) {
-                throw new InvalidArgumentException("Test \"{$testTitle}\" MCQ #".($qi + 1).": options_json must be an object with A–D.");
+                throw new InvalidArgumentException("Test \"{$testTitle}\" MCQ #".($qi + 1).': options_json must be an object with A–D.');
             }
             foreach (['A', 'B', 'C', 'D'] as $k) {
                 if (empty($opts[$k]) || ! is_string($opts[$k])) {
@@ -1129,7 +1186,7 @@ MSG;
             }
             $ans = strtoupper(trim((string) $qRow['correct_answer']));
             if (! in_array($ans, ['A', 'B', 'C', 'D'], true)) {
-                throw new InvalidArgumentException("Test \"{$testTitle}\" MCQ #".($qi + 1).": correct_answer must be A–D.");
+                throw new InvalidArgumentException("Test \"{$testTitle}\" MCQ #".($qi + 1).': correct_answer must be A–D.');
             }
 
             $script = isset($qRow['audio_script']) && is_string($qRow['audio_script']) ? trim($qRow['audio_script']) : '';
@@ -1282,6 +1339,7 @@ MSG;
      */
     private function extractQuestionsForTestTitle(array $payload, string $expectedTitle): array
     {
+        $want = $this->normalizeTitleForMatch($expectedTitle);
         $matches = [];
         foreach ($payload['exams'] ?? [] as $exam) {
             if (! is_array($exam)) {
@@ -1295,7 +1353,7 @@ MSG;
                     if (! is_array($t)) {
                         continue;
                     }
-                    if (($t['title'] ?? '') !== $expectedTitle) {
+                    if ($this->normalizeTitleForMatch((string) ($t['title'] ?? '')) !== $want) {
                         continue;
                     }
                     $q = $t['questions'] ?? null;
@@ -1372,7 +1430,7 @@ MSG;
     }
 
     /**
-     * Same pipeline as {@see \App\Console\Commands\OpenAiGenerateQuestionnaireCommand} (generate, validate, import).
+     * Same pipeline as {@see OpenAiGenerateQuestionnaireCommand} (generate, validate, import).
      *
      * @param  array{
      *   file_path?: string|null,
