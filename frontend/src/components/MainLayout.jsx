@@ -1,6 +1,7 @@
 import { Container, Nav, Navbar, NavDropdown } from 'react-bootstrap';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import AppDisclaimer from './AppDisclaimer.jsx';
+import FloatingBgIcons from './FloatingBgIcons.jsx';
 import PracticeNudge from './PracticeNudge.jsx';
 import RouteSeo from './RouteSeo.jsx';
 import SiteTrafficRecorder from './SiteTrafficRecorder.jsx';
@@ -19,10 +20,22 @@ export default function MainLayout() {
     <div className="d-flex flex-column min-vh-100">
       <RouteSeo />
       <SiteTrafficRecorder />
-      <Navbar expand="lg" className="br-sticky-header py-2">
+      <Navbar expand="lg" variant="dark" className="br-sticky-header py-2">
         <Container>
-          <Navbar.Brand as={Link} to="/" className="fw-bold d-flex align-items-center gap-2">
-            <i className="bi bi-mortarboard-fill text-br-rose" aria-hidden />
+          <Navbar.Brand
+            as={Link}
+            to="/"
+            aria-label="BandReady home"
+            className="fw-bold d-flex align-items-center gap-2"
+          >
+            <img
+              src="/bandready-mark.png"
+              alt=""
+              width={32}
+              height={32}
+              className="flex-shrink-0 rounded-2"
+              decoding="async"
+            />
             <span>
               Band<span className="text-br-rose">Ready</span>
             </span>
@@ -158,12 +171,13 @@ export default function MainLayout() {
           </Navbar.Collapse>
         </Container>
       </Navbar>
-      <main>
+      <FloatingBgIcons />
+      <main className="br-page-stack">
         <Outlet />
       </main>
       <PracticeNudge />
       <footer
-        className="border-top mt-auto py-4"
+        className="br-page-stack border-top mt-auto py-4"
         style={{ borderColor: 'color-mix(in srgb, var(--br-blush-edge) 40%, var(--br-border))' }}
       >
         <Container>

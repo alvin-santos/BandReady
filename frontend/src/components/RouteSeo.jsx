@@ -8,7 +8,7 @@ export default function RouteSeo() {
   const { title, description, noIndex } = getRouteMeta(pathname);
   const canonical = absoluteUrl(pathname);
   const origin = getSiteOrigin();
-  const ogImage = origin ? `${origin}/favicon.svg` : '/favicon.svg';
+  const ogImage = origin ? `${origin}/bandready-mark.png` : '/bandready-mark.png';
 
   const jsonLd = {
     '@context': 'https://schema.org',

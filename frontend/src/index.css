@@ -61,6 +61,47 @@ body {
   min-height: 100vh;
 }
 
+/* Subtle floating icons — lower viewport only; hidden on `/exam/run` (see FloatingBgIcons.jsx). */
+.br-floating-bg {
+  position: fixed;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: min(52vh, 520px);
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.br-floating-bg-icon {
+  position: absolute;
+  font-size: clamp(1.75rem, 3.8vw, 3rem);
+  color: var(--br-text-rose);
+  opacity: 0.055;
+  animation: br-float-drift 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+[data-theme='dark'] .br-floating-bg-icon {
+  color: var(--br-text-rose-muted);
+  opacity: 0.075;
+}
+
+@keyframes br-float-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(-4deg);
+  }
+  50% {
+    transform: translate(10px, -14px) rotate(4deg);
+  }
+}
+
+.br-page-stack {
+  position: relative;
+  z-index: 1;
+}
+
 .br-card {
   background: var(--br-surface);
   border: 1px solid color-mix(in srgb, var(--br-blush-edge) 28%, var(--br-border));
@@ -93,9 +134,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 1020;
-  background: var(--br-nav-bg);
-  border-bottom: 1px solid color-mix(in srgb, var(--br-blush-edge) 40%, var(--br-border));
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--br-border) 65%, transparent);
+  background: #991b1b;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
 }
 
 .br-exam-shell {
@@ -478,15 +519,32 @@ small,
 }
 
 .br-sticky-header .navbar-brand {
-  color: var(--br-text);
+  color: #fff;
 }
 
 .br-sticky-header .navbar-brand:hover {
-  color: var(--br-text-rose);
+  color: #fecaca;
 }
 
-.br-sticky-header .nav-link:hover {
-  color: var(--br-text-rose-soft) !important;
+.br-sticky-header .text-br-rose,
+.br-sticky-header .text-br-rose-soft {
+  color: #fecaca !important;
+}
+
+.br-sticky-header .nav-link:not(.text-warning) {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.br-sticky-header .nav-link:not(.text-warning):hover {
+  color: #fff !important;
+}
+
+.br-sticky-header .nav-link.text-warning {
+  color: #fef08a !important;
+}
+
+.br-sticky-header .nav-link.text-warning:hover {
+  color: #fffbeb !important;
 }
 
 .br-main-nav .dropdown-toggle::after {

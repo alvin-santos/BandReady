@@ -13,6 +13,7 @@ class TestController extends Controller
     {
         $q = Test::query()
             ->with(['exam', 'section'])
+            ->withCount('questions')
             ->join('sections', 'tests.section_id', '=', 'sections.id')
             ->orderBy('sections.sort_order')
             ->orderBy('sections.id')

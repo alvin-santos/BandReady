@@ -1,16 +1,16 @@
 const DEFAULT_DESCRIPTION =
-  'BandReady offers timed IELTS and CELPIP-style practice: listening, reading, writing, and speaking with automatic scoring, AI feedback options, community forum, rankings, and downloadable resources.';
+  'Free online IELTS exam and CELPIP test practice—timed sections, scoring, forum & rankings. Guests: Reading & Writing; sign in for Listening & Speaking. BandReady Pro adds AI feedback where enabled.';
 
 /** @type {Record<string, { title: string; description: string }>} */
 const EXACT = {
   '/': {
-    title: 'BandReady — IELTS & CELPIP exam practice',
+    title: 'BandReady — Free online IELTS exam & CELPIP test practice',
     description: DEFAULT_DESCRIPTION,
   },
   '/why-bandready': {
     title: 'Why BandReady?',
     description:
-      'What BandReady is for, how practice and scoring work, and how we help you prepare for IELTS and CELPIP-style exams.',
+      'How BandReady’s free online IELTS exam and CELPIP test practice works: timed runs, scoring, what is included for free, and how results relate to official tests.',
   },
   '/practice-disclaimer': {
     title: 'Practice disclaimer',
@@ -22,7 +22,8 @@ const EXACT = {
   },
   '/forum': {
     title: 'Community forum',
-    description: 'Discuss IELTS, CELPIP, and English exam prep with other learners on the BandReady forum.',
+    description:
+      'Discuss free online IELTS exam prep, CELPIP test tips, and study strategies with other learners on the BandReady forum.',
   },
   '/login': {
     title: 'Sign in',
@@ -30,7 +31,8 @@ const EXACT = {
   },
   '/register': {
     title: 'Create account',
-    description: 'Create a free BandReady account to track practice, scores, and progress.',
+    description:
+      'Create a free BandReady account for online IELTS and CELPIP practice: save attempts, unlock Listening & Speaking, analytics, and Pro options.',
   },
   '/verify-email': {
     title: 'Verify email',
@@ -46,11 +48,13 @@ const EXACT = {
   },
   '/resources': {
     title: 'Resources',
-    description: 'Downloadable guides and resources for IELTS and CELPIP-style exam preparation.',
+    description:
+      'Free IELTS and CELPIP-style prep resources on BandReady: guides, downloads, and links to help your online exam practice.',
   },
   '/exam/start': {
-    title: 'Start practice',
-    description: 'Choose a test and start a timed BandReady practice attempt.',
+    title: 'Free online IELTS exam & CELPIP test — Start',
+    description:
+      'Start a free online IELTS exam or CELPIP test practice run: pick your program, full mock sections, timers, and scoring. Guests can use Reading & Writing; sign in for Listening & Speaking.',
   },
   '/practice/mistakes': {
     title: 'Mistakes hub',
@@ -103,19 +107,21 @@ export function getRouteMeta(pathname) {
   }
   if (path.startsWith('/exam/run/')) {
     return {
-      title: 'Practice exam',
-      description: 'Timed BandReady practice attempt — listening, reading, writing, or speaking.',
+      title: 'Online IELTS & CELPIP practice exam',
+      description:
+        'Your timed free online IELTS or CELPIP-style practice session on BandReady—listening, reading, writing, or speaking with on-screen controls.',
     };
   }
   if (path.startsWith('/results/')) {
     return {
-      title: 'Results',
-      description: 'Review your BandReady practice attempt results and feedback.',
+      title: 'Practice test results',
+      description:
+        'Review scores and feedback from your free online IELTS exam or CELPIP test practice attempt on BandReady.',
     };
   }
 
   return {
-    title: 'BandReady',
+    title: 'BandReady — Free online IELTS & CELPIP practice',
     description: DEFAULT_DESCRIPTION,
   };
 }

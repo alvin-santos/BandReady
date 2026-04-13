@@ -6,10 +6,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import AdSlot from '../components/AdSlot.jsx';
 import PracticeDisclaimerCallout from '../components/PracticeDisclaimerCallout.jsx';
 
-const modeMeta = {
-  full: { icon: 'bi-layers-fill', label: 'Full mock test' },
-  quick: { icon: 'bi-lightning-charge-fill', label: 'Quick practice' },
-};
+/** Full mock tests only (quick practice removed from UI). */
+const PRACTICE_MODE = 'full';
 
 /** @param {{ code?: string }} exam */
 function iconForExamProgram(exam) {
@@ -50,6 +48,55 @@ function iconForTestSection(sectionName) {
   return 'bi-journal-text';
 }
 
+/** @param {{ duration_minutes?: number | null; section?: { duration_minutes?: number | null } | null }} test */
+function effectiveTestDurationMinutes(test) {
+  const raw = test.duration_minutes ?? test.section?.duration_minutes;
+  if (raw == null) {
+    return null;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** @param {number} minutes */
+function formatTestDuration(minutes) {
+  const m = Math.round(minutes);
+  if (m < 60) {
+    return `${m} min`;
+  }
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  if (r === 0) {
+    return h === 1 ? '1 hr' : `${h} hr`;
+  }
+  return `${h} hr ${r} min`;
+}
+
+/** @param {{ questions_count?: number; questions_to_show?: number | null }} test */
+function effectiveTestQuestionCount(test) {
+  const raw = test.questions_count;
+  if (raw == null) {
+    return null;
+  }
+  const total = Math.trunc(Number(raw));
+  if (!Number.isFinite(total) || total < 0) {
+    return null;
+  }
+  const capRaw = test.questions_to_show;
+  if (capRaw != null) {
+    const cap = Math.trunc(Number(capRaw));
+    if (Number.isFinite(cap) && cap > 0) {
+      return Math.min(total, cap);
+    }
+  }
+  return total;
+}
+
+/** @param {number} n */
+function formatTestQuestionCount(n) {
+  return n === 1 ? '1 question' : `${n} questions`;
+}
+
 export default function ExamStart() {
   const { user, isSubscribed, isAdmin, refresh } = useAuth();
   const [search] = useSearchParams();
@@ -58,7 +105,6 @@ export default function ExamStart() {
   const [tests, setTests] = useState([]);
   const [ads, setAds] = useState([]);
   const [examId, setExamId] = useState('');
-  const [mode, setMode] = useState('full');
   const [testId, setTestId] = useState('');
   const [strictMode, setStrictMode] = useState(false);
   const [forwardOnly, setForwardOnly] = useState(false);
@@ -112,7 +158,7 @@ export default function ExamStart() {
     }
     let cancelled = false;
     api
-      .get('/tests', { params: { exam_id: examId, practice_mode: mode } })
+      .get('/tests', { params: { exam_id: examId, practice_mode: PRACTICE_MODE } })
       .then((res) => {
         if (!cancelled) {
           setTests(res.data);
@@ -122,7 +168,7 @@ export default function ExamStart() {
     return () => {
       cancelled = true;
     };
-  }, [examId, mode]);
+  }, [examId]);
 
   const sidebarAd = useMemo(() => ads.find((a) => a.location === 'sidebar'), [ads]);
 
@@ -206,7 +252,7 @@ export default function ExamStart() {
           <p className="text-muted mb-4 d-flex align-items-start gap-2">
             <i className="bi bi-info-circle mt-1 flex-shrink-0" aria-hidden />
             <span>
-              Pick your program, practice mode, and test. <strong>Guests</strong> can start <strong>Reading</strong> and{' '}
+              Pick your program and a full mock test. <strong>Guests</strong> can start <strong>Reading</strong> and{' '}
               <strong>Writing</strong> only. <strong>Signed-in</strong> users also get <strong>Listening</strong> and{' '}
               <strong>Speaking</strong> (a limited number of free Speaking exams; <strong>Pro</strong> is unlimited).{' '}
               <strong>Pro</strong> also enables AI feedback on essays and speaking where the site has it configured.
@@ -258,33 +304,7 @@ export default function ExamStart() {
               {exams.length === 0 && <p className="small text-muted mb-0">No exam programs are available yet.</p>}
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label className="d-flex align-items-center gap-2">
-                <i className="bi bi-sliders" aria-hidden />
-                Practice mode
-              </Form.Label>
-              <div>
-                {(['full', 'quick']).map((key) => {
-                  const m = modeMeta[key];
-                  return (
-                    <Form.Check
-                      key={key}
-                      className="mb-2"
-                      type="radio"
-                      name="pmode"
-                      id={`pm-${key}`}
-                      checked={mode === key}
-                      onChange={() => setMode(key)}
-                      label={
-                        <span className="d-inline-flex align-items-center gap-2">
-                          <i className={`bi ${m.icon}`} aria-hidden />
-                          {m.label}
-                        </span>
-                      }
-                    />
-                  );
-                })}
-              </div>
+            <div className="mb-3">
               {speakingQuota && (
                 <div
                   className="mt-3 p-3 rounded border border-secondary border-opacity-25 bg-body-secondary bg-opacity-10"
@@ -336,7 +356,7 @@ export default function ExamStart() {
                   </span>
                 </p>
               )}
-            </Form.Group>
+            </div>
 
             <Form.Group className={`mb-3 ${!user ? 'opacity-50' : ''}`}>
               <Form.Label className="d-flex align-items-center gap-2">
@@ -396,11 +416,11 @@ export default function ExamStart() {
               {!examId && (
                 <p className="small text-muted mb-0 d-flex align-items-center gap-2">
                   <i className="bi bi-arrow-up-circle" aria-hidden />
-                  Choose an exam program above to see tests for this mode.
+                  Choose an exam program above to see full mock tests.
                 </p>
               )}
               {examId && tests.length === 0 && (
-                <p className="small text-muted mb-0">No tests match this program and mode.</p>
+                <p className="small text-muted mb-0">No tests match this program.</p>
               )}
               {examId && tests.length > 0 && (
                 <Row className="g-3" role="radiogroup" aria-label="Test">
@@ -411,6 +431,10 @@ export default function ExamStart() {
                     const sel = String(testId) === String(t.id);
                     const sectionName = String(t.section?.name || '');
                     const isSpeaking = sectionName.toLowerCase().includes('speak');
+                    const durationMin = effectiveTestDurationMinutes(t);
+                    const durationLabel = durationMin != null ? formatTestDuration(durationMin) : null;
+                    const questionCount = effectiveTestQuestionCount(t);
+                    const questionLabel = questionCount != null ? formatTestQuestionCount(questionCount) : null;
                     return (
                       <Col key={t.id} xs={12} sm={6}>
                         <label
@@ -442,7 +466,27 @@ export default function ExamStart() {
                             </span>
                             <div className="flex-grow-1 min-w-0 pe-3">
                               <div className="fw-semibold text-body small mb-1">{t.title}</div>
-                              <div className="text-muted small mb-2">{t.section?.name ?? 'Section'}</div>
+                              <div className="text-muted small mb-2 d-flex flex-wrap align-items-center column-gap-1 row-gap-1">
+                                <span>{t.section?.name ?? 'Section'}</span>
+                                {durationLabel && (
+                                  <>
+                                    <span aria-hidden>·</span>
+                                    <span className="text-nowrap d-inline-flex align-items-center gap-1">
+                                      <i className="bi bi-clock" aria-hidden />
+                                      <span>{durationLabel}</span>
+                                    </span>
+                                  </>
+                                )}
+                                {questionLabel && (
+                                  <>
+                                    <span aria-hidden>·</span>
+                                    <span className="text-nowrap d-inline-flex align-items-center gap-1">
+                                      <i className="bi bi-list-check" aria-hidden />
+                                      <span>{questionLabel}</span>
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                               <div className="d-flex flex-wrap gap-1">
                                 {comingSoon && (
                                   <span className="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-25">
@@ -484,7 +528,7 @@ export default function ExamStart() {
               <p className="small text-muted mt-3 mb-0 d-flex align-items-start gap-2">
                 <i className="bi bi-info-circle mt-1 flex-shrink-0" aria-hidden />
                 <span>
-                  Lists reflect your mode. <strong>Sign in</strong> appears when a guest needs an account for that skill;{' '}
+                  <strong>Sign in</strong> appears when a guest needs an account for that skill;{' '}
                   <strong>Pro</strong> appears when you have used all free Speaking attempts.{' '}
                   <strong>Speaking paused</strong> means Speaking was disabled on your account after inappropriate language was
                   detected—see Profile. <strong>Coming soon</strong> means the test is not available to start yet.
