@@ -7,6 +7,7 @@ use App\Models\Exam;
 use App\Models\Question;
 use App\Models\Section;
 use App\Models\Test;
+use App\Support\CelpipOfficialTaskCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -109,6 +110,8 @@ Each test has "questions": array. Each question:
 - "correct_answer": for multiple_choice, single letter A–D. For true_false, "true" or "false". For fill_blank, the exact expected word or short phrase. For essay/speaking_prompt, a short **rubric** for graders/AI: prioritize **language** (range, accuracy, coherence) and **reasonable on-topic response**; for picture tasks, do not imply the candidate must enumerate every visual detail. For checkbox_multi, a JSON string of a sorted array of keys, e.g. "[\"A\",\"C\"]"
 - "explanation": string or null (shown after submit; not read for listening). For **multiple_choice**, explain using the **substance** of the correct option (paraphrase from passage or audio)—**never** name which letter is correct (do not write "Option B", "choice D", "the answer is A"); option labels may be reordered for learners.
 - "order": integer starting at 1 per test
+- "celpip_task_number": optional integer (official CELPIP General–style task index for that section: Listening 1–6, Reading 1–4, Writing 1–2, Speaking 1–8). Omit or null when the question is not tied to a named CELPIP task type.
+- "celpip_task_label": optional string; the **canonical English task name** for that number and section (must match the official list when `celpip_task_number` is set). When the user selects specific CELPIP section tasks for a generation run, these two fields are **mandatory** for every question in those sections (see the user message for that run).
 
 Rules:
 - Include at least one exam. When the user does not restrict sections: include at least two sections and at least one test per section with sensible question counts (e.g. Reading: 5–10 MCQ each with a **different** passage_text; Listening: several MCQ each with a **different** audio_script; Writing: 1–2 essay; Speaking: 1–2 speaking_prompt). When the user restricts to specific section(s) only, output only those sections—each with at least one test and sensible question counts—and omit all other section types.
@@ -426,7 +429,7 @@ PROMPT;
     /**
      * @param  array{exam: Exam, test: Test}|null  $existingTarget
      */
-    public function generatePayload(string $userInstructions, ?string $model = null, ?OutputInterface $output = null, ?int $questionsPerTest = null, ?array $onlySections = null, ?array $existingTarget = null, bool $withSpeakingImages = false): array
+    public function generatePayload(string $userInstructions, ?string $model = null, ?OutputInterface $output = null, ?int $questionsPerTest = null, ?array $onlySections = null, ?array $existingTarget = null, bool $withSpeakingImages = false, ?array $celpipSectionTasks = null): array
     {
         $key = config('openai.api_key');
         if (! is_string($key) || $key === '') {
@@ -524,6 +527,24 @@ PROMPT;
             }
             $user .= "\n\n**IELTS AI Speaking (exception to per-test count):** For any **Speaking** test under an exam whose `code` starts with `ielts_`, if you use `options_json.ielts_speaking.mode: ai_conversation`, output **exactly one** `speaking_prompt` for that test (full Parts 1–3 interview in-app)—do **not** duplicate multiple `ai_conversation` rows to satisfy a higher question count.";
             $output?->writeln('<comment>Questions per test (prompt constraint):</comment> '.$questionsPerTest);
+        }
+
+        $celpipApplicable = CelpipOfficialTaskCatalog::filterApplicable($celpipSectionTasks, $onlySections, $existingTarget);
+        if ($celpipApplicable !== []) {
+            $user .= "\n\n".CelpipOfficialTaskCatalog::formatPromptBlock($celpipApplicable, $questionsPerTest);
+            $parts = [];
+            foreach ($celpipApplicable as $sec => $ids) {
+                $parts[] = $sec.' ['.implode(',', $ids).']';
+            }
+            $output?->writeln('<comment>CELPIP-style task focus:</comment> '.implode('; ', $parts));
+            $user .= <<<'CELPIP_META'
+
+**CELPIP TASK METADATA (mandatory for this run):** For **every question** whose section appears in the CELPIP task focus above, include both:
+- `"celpip_task_number"`: integer — must be **one of** the task numbers listed for that section in this request (not any other task index).
+- `"celpip_task_label"`: string — the **exact** official English name for that task (same spelling as in the list above, e.g. Listening task 1 → `"Problem solving"`).
+
+Each question must map to **exactly one** selected task. Distribute questions across the selected task types as already instructed. Sections **not** listed in the CELPIP task focus may omit these keys or use null.
+CELPIP_META;
         }
 
         if ($withSpeakingImages && $this->sectionScopeIncludesSpeaking($onlySections, $existingTarget)) {
@@ -678,7 +699,10 @@ SPEAK_IMG;
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function validatePayload(array $payload): void
+    /**
+     * @param  array<string, list<int>>|null  $celpipSectionTasksNormalized  When set (e.g. OpenAI run with celpip_section_tasks), questions in those sections must include valid task metadata within the allowed task numbers.
+     */
+    public function validatePayload(array $payload, ?array $celpipSectionTasksNormalized = null): void
     {
         if (! isset($payload['exams']) || ! is_array($payload['exams']) || $payload['exams'] === []) {
             throw new InvalidArgumentException('JSON must contain a non-empty "exams" array.');
@@ -719,15 +743,16 @@ SPEAK_IMG;
         }
 
         $this->assertDistinctReadingPassagesPerTest($payload);
-        $this->validatePayloadQuestionConstraints($payload);
+        $this->validatePayloadQuestionConstraints($payload, $celpipSectionTasksNormalized);
     }
 
     /**
      * Per-question rules (e.g. Listening audio_script length) so dry-run and file import fail before DB writes.
      *
      * @param  array<string, mixed>  $payload
+     * @param  array<string, list<int>>|null  $celpipSectionTasksNormalized
      */
-    private function validatePayloadQuestionConstraints(array $payload): void
+    private function validatePayloadQuestionConstraints(array $payload, ?array $celpipSectionTasksNormalized = null): void
     {
         foreach ($payload['exams'] ?? [] as $exam) {
             if (! is_array($exam)) {
@@ -747,12 +772,20 @@ SPEAK_IMG;
                     }
                     $questions = is_array($test['questions'] ?? null) ? $test['questions'] : [];
                     $sectionName = (string) ($sec['name'] ?? '');
+                    $allowedCelpip = null;
+                    if ($celpipSectionTasksNormalized !== null && $sectionName !== '' && isset($celpipSectionTasksNormalized[$sectionName])) {
+                        $allowedCelpip = $celpipSectionTasksNormalized[$sectionName];
+                    }
                     foreach ($questions as $qi => $qRow) {
                         if (! is_array($qRow)) {
                             throw new InvalidArgumentException("Test \"{$title}\" question #".((int) $qi + 1).': must be an object.');
                         }
-                        $qRow = $this->normalizeQuestionRowForImport($qRow, $sectionName);
-                        $this->assertValidQuestion($qRow, $title, (int) $qi, $sectionName);
+                        try {
+                            $qRow = $this->prepareQuestionRowForImport($qRow, $sectionName);
+                        } catch (InvalidArgumentException $e) {
+                            throw new InvalidArgumentException("Test \"{$title}\" question #".((int) $qi + 1).': '.$e->getMessage());
+                        }
+                        $this->assertValidQuestion($qRow, $title, (int) $qi, $sectionName, $allowedCelpip);
                     }
                 }
             }
@@ -825,9 +858,9 @@ MSG;
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function importPayload(array $payload, ?OutputInterface $output = null, bool $showQuestionPreviews = true, bool $withSpeakingImages = false): void
+    public function importPayload(array $payload, ?OutputInterface $output = null, bool $showQuestionPreviews = true, bool $withSpeakingImages = false, ?array $celpipSectionTasksNormalized = null): void
     {
-        $this->validatePayload($payload);
+        $this->validatePayload($payload, $celpipSectionTasksNormalized);
 
         $examCount = count($payload['exams']);
         $output?->writeln('<info>Starting database import…</info> (<comment>'.$examCount.'</comment> exam(s))');
@@ -835,7 +868,7 @@ MSG;
             $output?->writeln('<comment>Post-import:</comment> generating scene images for speaking_prompt rows with options_json.speaking.image_generation_prompt…');
         }
 
-        DB::transaction(function () use ($payload, $output, $showQuestionPreviews, $withSpeakingImages) {
+        DB::transaction(function () use ($payload, $output, $showQuestionPreviews, $withSpeakingImages, $celpipSectionTasksNormalized) {
             foreach ($payload['exams'] as $examRow) {
                 $exam = Exam::query()->updateOrCreate(
                     ['code' => $examRow['code']],
@@ -920,12 +953,21 @@ MSG;
                         /** @var array<string, int> $seenAudioScripts normalized script => first payload order in batch */
                         $seenAudioScripts = [];
 
+                        $allowedCelpip = null;
+                        if ($celpipSectionTasksNormalized !== null && isset($celpipSectionTasksNormalized[$secRow['name']])) {
+                            $allowedCelpip = $celpipSectionTasksNormalized[$secRow['name']];
+                        }
+
                         foreach ($questions as $qi => $qRow) {
                             if (! is_array($qRow)) {
                                 throw new InvalidArgumentException('Each question must be an object.');
                             }
-                            $qRow = $this->normalizeQuestionRowForImport($qRow, $secRow['name']);
-                            $this->assertValidQuestion($qRow, $test->title, $qi, $secRow['name']);
+                            try {
+                                $qRow = $this->prepareQuestionRowForImport($qRow, $secRow['name']);
+                            } catch (InvalidArgumentException $e) {
+                                throw new InvalidArgumentException('Test "'.$test->title.'" question #'.($qi + 1).': '.$e->getMessage());
+                            }
+                            $this->assertValidQuestion($qRow, $test->title, $qi, $secRow['name'], $allowedCelpip);
                             $payloadOrder = (int) ($qRow['order'] ?? ($qi + 1));
                             $orderCursor++;
                             $dbOrder = $orderCursor;
@@ -1004,6 +1046,12 @@ MSG;
                                 'correct_answer' => $correct,
                                 'explanation' => isset($qRow['explanation']) && is_string($qRow['explanation']) ? $qRow['explanation'] : null,
                                 'order' => $dbOrder,
+                                'celpip_task_number' => isset($qRow['celpip_task_number']) && $qRow['celpip_task_number'] !== null
+                                    ? (int) $qRow['celpip_task_number']
+                                    : null,
+                                'celpip_task_label' => isset($qRow['celpip_task_label']) && is_string($qRow['celpip_task_label']) && trim($qRow['celpip_task_label']) !== ''
+                                    ? trim($qRow['celpip_task_label'])
+                                    : null,
                             ]);
 
                             if ($withSpeakingImages && ($qRow['type'] ?? '') === 'speaking_prompt') {
@@ -1081,14 +1129,17 @@ MSG;
      */
     private function normalizeQuestionRowForImport(array $qRow, string $sectionName): array
     {
+        $qRow = $this->coerceMcqOptionsJsonOnQuestionRow($qRow);
+
         $rawType = $qRow['type'] ?? null;
-        $fromAlt = false;
         if (($rawType === null || (is_string($rawType) && trim($rawType) === '')) && isset($qRow['question_type']) && is_string($qRow['question_type'])) {
             $qRow['type'] = trim($qRow['question_type']);
-            $fromAlt = true;
-        }
-        if ($fromAlt) {
             unset($qRow['question_type']);
+        }
+        $rawType = $qRow['type'] ?? null;
+        if (($rawType === null || (is_string($rawType) && trim($rawType) === '')) && isset($qRow['questionType']) && is_string($qRow['questionType'])) {
+            $qRow['type'] = trim($qRow['questionType']);
+            unset($qRow['questionType']);
         }
 
         $rawType = $qRow['type'] ?? null;
@@ -1155,13 +1206,125 @@ MSG;
             }
         }
 
+        if ($type === '' && $sectionName === 'Listening') {
+            $script = isset($qRow['audio_script']) && is_string($qRow['audio_script']) ? trim($qRow['audio_script']) : '';
+            if ($script !== '') {
+                $qRow['type'] = 'multiple_choice';
+
+                return $qRow;
+            }
+        }
+
+        return $qRow;
+    }
+
+    /**
+     * Normalizes MCQ option payloads so {@see normalizeQuestionRowForImport} can infer `multiple_choice`
+     * when the model uses alternate keys, lowercase letters, stringified JSON, or {text} objects.
+     *
+     * @param  array<string, mixed>  $qRow
+     * @return array<string, mixed>
+     */
+    private function coerceMcqOptionsJsonOnQuestionRow(array $qRow): array
+    {
+        $opts = $qRow['options_json'] ?? null;
+        if (is_string($opts)) {
+            $decoded = json_decode($opts, true);
+            if (is_array($decoded)) {
+                $qRow['options_json'] = $decoded;
+                $opts = $decoded;
+            }
+        }
+        if ((! is_array($opts) || ! $this->optionsJsonHasStringQuad($opts)) && isset($qRow['options']) && is_array($qRow['options'])) {
+            $qRow['options_json'] = $qRow['options'];
+            unset($qRow['options']);
+            $opts = $qRow['options_json'];
+        }
+        if (! is_array($opts)) {
+            return $qRow;
+        }
+
+        $norm = [];
+        foreach ($opts as $k => $v) {
+            if (is_string($k) || is_int($k)) {
+                $letter = strtoupper(trim((string) $k));
+            } else {
+                continue;
+            }
+            if (! in_array($letter, ['A', 'B', 'C', 'D'], true)) {
+                continue;
+            }
+            if (is_string($v) && trim($v) !== '') {
+                $norm[$letter] = $v;
+
+                continue;
+            }
+            if (is_array($v)) {
+                $text = $v['text'] ?? $v['label'] ?? $v['value'] ?? $v['option'] ?? null;
+                if (is_string($text) && trim($text) !== '') {
+                    $norm[$letter] = $text;
+                }
+            }
+        }
+        if (isset($norm['A'], $norm['B'], $norm['C'], $norm['D'])) {
+            $qRow['options_json'] = $norm;
+        }
+
+        return $qRow;
+    }
+
+    /**
+     * @param  array<string, mixed>  $opts
+     */
+    private function optionsJsonHasStringQuad(array $opts): bool
+    {
+        foreach (['A', 'B', 'C', 'D'] as $k) {
+            if (! isset($opts[$k]) || ! is_string($opts[$k]) || trim($opts[$k]) === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $qRow
+     * @return array<string, mixed>
+     */
+    private function prepareQuestionRowForImport(array $qRow, string $sectionName): array
+    {
+        $qRow = $this->normalizeQuestionRowForImport($qRow, $sectionName);
+
+        return $this->applyCelpipTaskMetadata($qRow, $sectionName);
+    }
+
+    /**
+     * @param  array<string, mixed>  $qRow
+     * @return array<string, mixed>
+     */
+    private function applyCelpipTaskMetadata(array $qRow, string $sectionName): array
+    {
+        if (! isset(CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName])) {
+            $qRow['celpip_task_number'] = null;
+            $qRow['celpip_task_label'] = null;
+
+            return $qRow;
+        }
+
+        $numRaw = $qRow['celpip_task_number'] ?? null;
+        $labelRaw = $qRow['celpip_task_label'] ?? null;
+        [$n, $label] = CelpipOfficialTaskCatalog::resolveForQuestion($sectionName, $numRaw, $labelRaw);
+        $qRow['celpip_task_number'] = $n;
+        $qRow['celpip_task_label'] = $label;
+
         return $qRow;
     }
 
     /**
      * @param  array<string, mixed>  $qRow
+     * @param  list<int>|null  $allowedCelpipTaskNumbers  When non-null, question must carry CELPIP task metadata and number must be in this list.
      */
-    private function assertValidQuestion(array $qRow, string $testTitle, int $qi, string $sectionName = ''): void
+    private function assertValidQuestion(array $qRow, string $testTitle, int $qi, string $sectionName = '', ?array $allowedCelpipTaskNumbers = null): void
     {
         $type = $qRow['type'] ?? '';
         if (! in_array($type, self::QUESTION_TYPES, true)) {
@@ -1208,6 +1371,27 @@ MSG;
                 if ($sectionName === 'Listening') {
                     $this->assertListeningMcqStemUsesScriptTokens((string) $qRow['question_text'], $script, $testTitle, $qi);
                 }
+            }
+        }
+
+        if ($allowedCelpipTaskNumbers !== null && $sectionName !== '' && isset(CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName])) {
+            $n = $qRow['celpip_task_number'] ?? null;
+            if ($n === null) {
+                throw new InvalidArgumentException(
+                    "Test \"{$testTitle}\" question #".($qi + 1).': celpip_task_number and celpip_task_label are required for this CELPIP task-scoped generation.'
+                );
+            }
+            $n = (int) $n;
+            if (! in_array($n, $allowedCelpipTaskNumbers, true)) {
+                throw new InvalidArgumentException(
+                    "Test \"{$testTitle}\" question #".($qi + 1).": celpip_task_number {$n} is not allowed for {$sectionName} in this run (allowed: ".implode(', ', $allowedCelpipTaskNumbers).').'
+                );
+            }
+            $lab = $qRow['celpip_task_label'] ?? null;
+            if (! is_string($lab) || trim($lab) === '') {
+                throw new InvalidArgumentException(
+                    "Test \"{$testTitle}\" question #".($qi + 1).': celpip_task_label is required for this CELPIP task-scoped generation.'
+                );
             }
         }
     }
@@ -1443,7 +1627,8 @@ MSG;
      *   test_title?: string,
      *   dry_run?: bool,
      *   no_question_preview?: bool,
-     *   with_speaking_images?: bool
+     *   with_speaking_images?: bool,
+     *   celpip_section_tasks?: array<string, list<int>>|null
      * } $opts
      * @return array{code: int, payload?: array|null}
      */
@@ -1528,6 +1713,16 @@ MSG;
         $dryRun = (bool) ($opts['dry_run'] ?? false);
         $noQuestionPreview = (bool) ($opts['no_question_preview'] ?? false);
 
+        /** @var array<string, list<int>>|null $celpipNormalized */
+        $celpipNormalized = null;
+        if (isset($opts['celpip_section_tasks']) && is_array($opts['celpip_section_tasks'])) {
+            try {
+                $celpipNormalized = CelpipOfficialTaskCatalog::validateAndNormalize($opts['celpip_section_tasks']);
+            } catch (InvalidArgumentException $e) {
+                return $fail($e->getMessage());
+            }
+        }
+
         try {
             if ($filePath !== '') {
                 if (! is_readable($filePath)) {
@@ -1566,11 +1761,11 @@ MSG;
                 if ($extra !== '') {
                     $output->writeln('Extra prompt: '.$extra);
                 }
-                $payload = $this->generatePayload($extra, $model, $output, $questionsPerTestInt, $onlySectionsForOpenAi, $existingTarget, $withSpeakingImages);
+                $payload = $this->generatePayload($extra, $model, $output, $questionsPerTestInt, $onlySectionsForOpenAi, $existingTarget, $withSpeakingImages, $celpipNormalized);
             }
 
             $output->writeln('Validating payload structure…');
-            $this->validatePayload($payload);
+            $this->validatePayload($payload, $celpipNormalized);
             $examN = count($payload['exams']);
             $output->writeln("Payload OK: {$examN} exam(s) in response.");
         } catch (InvalidArgumentException $e) {
@@ -1588,7 +1783,7 @@ MSG;
         }
 
         try {
-            $this->importPayload($payload, $output, ! $noQuestionPreview, $withSpeakingImages);
+            $this->importPayload($payload, $output, ! $noQuestionPreview, $withSpeakingImages, $celpipNormalized);
         } catch (InvalidArgumentException $e) {
             return $fail($e->getMessage());
         }

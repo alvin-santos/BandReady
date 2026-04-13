@@ -35,6 +35,8 @@ class AdminQuestionController extends Controller
             'correct_answer' => 'required|string',
             'explanation' => 'nullable|string',
             'order' => 'nullable|integer|min:0',
+            'celpip_task_number' => 'nullable|integer|min:1|max:99',
+            'celpip_task_label' => 'nullable|string|max:191',
         ]);
 
         $question = Question::query()->create($data);
@@ -56,6 +58,8 @@ class AdminQuestionController extends Controller
             'correct_answer' => 'sometimes|string',
             'explanation' => 'nullable|string',
             'order' => 'nullable|integer|min:0',
+            'celpip_task_number' => 'nullable|integer|min:1|max:99',
+            'celpip_task_label' => 'nullable|string|max:191',
         ]);
         $question->update($data);
 
@@ -107,6 +111,8 @@ class AdminQuestionController extends Controller
             'correct_answer',
             'explanation',
             'order',
+            'celpip_task_number',
+            'celpip_task_label',
         ];
 
         $normalized = [];
@@ -142,6 +148,8 @@ class AdminQuestionController extends Controller
                 'correct_answer' => 'required|string',
                 'explanation' => 'nullable|string',
                 'order' => 'nullable|integer|min:0',
+                'celpip_task_number' => 'nullable|integer|min:1|max:99',
+                'celpip_task_label' => 'nullable|string|max:191',
             ]);
 
             if ($validator->fails()) {

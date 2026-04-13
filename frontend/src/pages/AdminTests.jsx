@@ -1,6 +1,41 @@
 import { useEffect, useState } from 'react';
 import { Button, Form, Modal, Spinner, Table } from 'react-bootstrap';
 import { api } from '../api/client.js';
+import { CELPIP_SECTION_TASKS } from '../data/celpipOfficialTasks.js';
+
+/** @param {string} sectionName */
+function emptyCelpipTaskCapsForm(sectionName) {
+  const tasks = CELPIP_SECTION_TASKS[sectionName];
+  if (!tasks) {
+    return {};
+  }
+  /** @type {Record<number, string>} */
+  const o = {};
+  tasks.forEach((t) => {
+    o[t.id] = '';
+  });
+  return o;
+}
+
+/**
+ * @param {Record<string, unknown>} row
+ * @param {string} sectionName
+ */
+function celpipCapsFormFromRow(row, sectionName) {
+  const base = emptyCelpipTaskCapsForm(sectionName);
+  const raw = row.celpip_questions_per_task;
+  if (!raw || typeof raw !== 'object') {
+    return base;
+  }
+  Object.keys(base).forEach((id) => {
+    const numId = Number(id);
+    const v = raw[numId] ?? raw[id] ?? raw[String(numId)];
+    if (v != null && v !== '') {
+      base[numId] = String(v);
+    }
+  });
+  return base;
+}
 
 const modes = [
   { value: 'full', label: 'Full mock' },
@@ -24,6 +59,7 @@ export default function AdminTests() {
     duration_minutes: '',
     is_available: true,
     questions_to_show: '',
+    celpipTaskCaps: {},
   });
   const [editId, setEditId] = useState(null);
 
@@ -65,6 +101,7 @@ export default function AdminTests() {
       duration_minutes: '',
       is_available: true,
       questions_to_show: '',
+      celpipTaskCaps: {},
     });
     setShow(true);
     if (eid) {
@@ -85,12 +122,32 @@ export default function AdminTests() {
       duration_minutes: row.duration_minutes ?? '',
       is_available: row.is_available !== false,
       questions_to_show: row.questions_to_show != null ? String(row.questions_to_show) : '',
+      celpipTaskCaps: celpipCapsFormFromRow(row, row.section?.name || ''),
     });
     setShow(true);
   }
 
   async function save(e) {
     e.preventDefault();
+    const sectionName = sections.find((s) => String(s.id) === String(form.section_id))?.name || '';
+    /** @type {Record<string, number> | null} */
+    let celpip_questions_per_task = null;
+    if (sectionName && CELPIP_SECTION_TASKS[sectionName]) {
+      const o = {};
+      CELPIP_SECTION_TASKS[sectionName].forEach((t) => {
+        const raw = form.celpipTaskCaps[t.id];
+        if (raw === '' || raw == null) {
+          return;
+        }
+        const n = Number(raw);
+        if (!Number.isFinite(n) || n < 0 || n > 500) {
+          return;
+        }
+        o[String(t.id)] = Math.trunc(n);
+      });
+      celpip_questions_per_task = Object.keys(o).length ? o : null;
+    }
+
     const payload = {
       exam_id: Number(form.exam_id),
       section_id: Number(form.section_id),
@@ -104,6 +161,7 @@ export default function AdminTests() {
         form.questions_to_show === '' || form.questions_to_show == null
           ? null
           : Number(form.questions_to_show),
+      celpip_questions_per_task,
     };
     if (editId) {
       await api.put(`/admin/tests/${editId}`, payload);
@@ -165,6 +223,7 @@ export default function AdminTests() {
               <th>Mode</th>
               <th>Duration</th>
               <th>Show Q</th>
+              <th>Task caps</th>
               <th>Available</th>
               <th className="text-end">Actions</th>
             </tr>
@@ -189,6 +248,15 @@ export default function AdminTests() {
                     </>
                   ) : (
                     <span className="text-muted">All{r.questions_count != null ? ` (${r.questions_count})` : ''}</span>
+                  )}
+                </td>
+                <td className="small">
+                  {r.celpip_questions_per_task &&
+                  typeof r.celpip_questions_per_task === 'object' &&
+                  Object.keys(r.celpip_questions_per_task).length > 0 ? (
+                    <span className="badge text-bg-secondary">On</span>
+                  ) : (
+                    <span className="text-muted">—</span>
                   )}
                 </td>
                 <td>{r.is_available === false ? 'No' : 'Yes'}</td>
@@ -218,7 +286,7 @@ export default function AdminTests() {
                 value={form.exam_id}
                 onChange={async (e) => {
                   const v = e.target.value;
-                  setForm((f) => ({ ...f, exam_id: v, section_id: '' }));
+                  setForm((f) => ({ ...f, exam_id: v, section_id: '', celpipTaskCaps: {} }));
                   await loadSections(v);
                 }}
                 required
@@ -236,7 +304,16 @@ export default function AdminTests() {
               <Form.Label>Section</Form.Label>
               <Form.Select
                 value={form.section_id}
-                onChange={(e) => setForm((f) => ({ ...f, section_id: e.target.value }))}
+                onChange={(e) => {
+                  const sid = e.target.value;
+                  const sec = sections.find((s) => String(s.id) === String(sid));
+                  const name = sec?.name || '';
+                  setForm((f) => ({
+                    ...f,
+                    section_id: sid,
+                    celpipTaskCaps: emptyCelpipTaskCapsForm(name),
+                  }));
+                }}
                 required
                 disabled={!sections.length}
               >
@@ -309,19 +386,59 @@ export default function AdminTests() {
                 onChange={(e) => setForm((f) => ({ ...f, duration_minutes: e.target.value }))}
               />
             </Form.Group>
+            {(() => {
+              const secName = sections.find((s) => String(s.id) === String(form.section_id))?.name;
+              const celpipTasks = secName ? CELPIP_SECTION_TASKS[secName] : null;
+              if (!celpipTasks?.length) {
+                return null;
+              }
+              return (
+                <Form.Group className="mb-3">
+                  <Form.Label>Max questions per CELPIP task (each attempt)</Form.Label>
+                  <p className="small text-muted mb-2">
+                    Leave a row empty to allow <strong>all</strong> bank questions for that task. Use <strong>0</strong>{' '}
+                    to exclude a task. Otherwise each attempt randomly picks up to that many items per task. Questions
+                    without a task tag always stay in the pool. Applied before the overall limit below (not used for IELTS
+                    AI Speaking ordering).
+                  </p>
+                  <div className="row g-2">
+                    {celpipTasks.map((t) => (
+                      <div key={t.id} className="col-md-6">
+                        <Form.Label className="small text-muted mb-1">
+                          Task {t.id} — {t.label}
+                        </Form.Label>
+                        <Form.Control
+                          type="number"
+                          min={0}
+                          max={500}
+                          placeholder="All"
+                          value={form.celpipTaskCaps[t.id] ?? ''}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              celpipTaskCaps: { ...f.celpipTaskCaps, [t.id]: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </Form.Group>
+              );
+            })()}
             <Form.Group>
-              <Form.Label>Questions shown to learners</Form.Label>
+              <Form.Label>Questions shown to learners (overall cap)</Form.Label>
               <Form.Control
                 type="number"
                 min={1}
                 max={500}
-                placeholder="Leave empty = show every question in this test"
+                placeholder="Leave empty = use full pool after per-task sampling"
                 value={form.questions_to_show}
                 onChange={(e) => setForm((f) => ({ ...f, questions_to_show: e.target.value }))}
               />
               <Form.Text className="text-muted">
-                If set, each attempt randomly picks this many questions from the test (after shuffle). Scoring uses only
-                those items. Changing this does not affect attempts already started.
+                If set, each attempt randomly picks this many questions from the pool left after per-task limits (when
+                any). Scoring uses only those items. Changing this does not affect attempts already started.
               </Form.Text>
             </Form.Group>
           </Modal.Body>

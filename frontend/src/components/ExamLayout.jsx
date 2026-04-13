@@ -28,6 +28,7 @@ export default function ExamLayout({
   onTogglePause,
   leftRailExtra = null,
   rightRailExtra = null,
+  questionNavQuestions = null,
 }) {
   const answeredSet = answeredNumbers || new Set();
   const canPause = typeof onTogglePause === 'function' && !strictMode;
@@ -129,6 +130,7 @@ export default function ExamLayout({
                 answeredSet={answeredSet}
                 minSelectableIndex={forwardOnly ? minSelectableIndex : 0}
                 selectionDisabled={navigationLocked}
+                questions={questionNavQuestions}
               />
             </div>
             {leftRailExtra ? <div className="br-exam-rail-ad-stack">{leftRailExtra}</div> : null}

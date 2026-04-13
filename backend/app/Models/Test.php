@@ -19,6 +19,7 @@ class Test extends Model
         'is_available',
         'questions_to_show',
         'ielts_speaking_picks',
+        'celpip_questions_per_task',
     ];
 
     protected function casts(): array
@@ -28,6 +29,7 @@ class Test extends Model
             'is_available' => 'boolean',
             'questions_to_show' => 'integer',
             'ielts_speaking_picks' => 'array',
+            'celpip_questions_per_task' => 'array',
         ];
     }
 

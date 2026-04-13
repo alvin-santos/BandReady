@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Col, Form, Row, Spinner } from 'react-bootstrap';
 import { api } from '../api/client.js';
+import { CELPIP_SECTION_CARD_THEME, CELPIP_SECTION_TASKS } from '../data/celpipOfficialTasks.js';
 
 const SECTIONS = ['Listening', 'Reading', 'Writing', 'Speaking'];
 
-const DEFAULT_SECTION_PICK = Object.fromEntries(
-  SECTIONS.map((s) => [s, s === 'Listening'])
-);
+/** Empty string = no section filter (full exam scope in OpenAI). */
+const SECTION_SCOPE_ALL = '';
+
+const DEFAULT_SECTION_SCOPE = 'Listening';
 const DEFAULT_QUESTIONS_PER_TEST = '1';
 const DEFAULT_EXAM_TITLE = 'CELPIP General';
 
@@ -21,10 +23,8 @@ function buildSuggestedTestTitle(examTitle, orderedSectionNames) {
 
 function buildArtisanPreview(body) {
   const parts = ['php artisan openai:generate-questionnaire'];
-  if (Array.isArray(body.sections) && body.sections.length > 0) {
-    for (const s of body.sections) {
-      parts.push(`--section=${s}`);
-    }
+  if (Array.isArray(body.sections) && body.sections.length === 1) {
+    parts.push(`--section=${body.sections[0]}`);
   }
   if (body.questions_per_test != null) {
     parts.push(`--questions-per-test=${body.questions_per_test}`);
@@ -57,10 +57,11 @@ function buildArtisanPreview(body) {
 }
 
 function initialFormState() {
-  const sectionPick = { ...DEFAULT_SECTION_PICK };
-  const ordered = SECTIONS.filter((s) => sectionPick[s]);
+  const ordered = DEFAULT_SECTION_SCOPE ? [DEFAULT_SECTION_SCOPE] : [];
   return {
-    sectionPick,
+    sectionScope: DEFAULT_SECTION_SCOPE,
+    /** Single CELPIP task for the selected section, or null to omit `celpip_section_tasks`. */
+    celpipTaskId: null,
     questionsPerTest: DEFAULT_QUESTIONS_PER_TEST,
     examTitle: DEFAULT_EXAM_TITLE,
     testTitle: buildSuggestedTestTitle(DEFAULT_EXAM_TITLE, ordered),
@@ -76,7 +77,19 @@ function initialFormState() {
 export default function AdminOpenAiQuestionnaire() {
   const fileInputRef = useRef(null);
   const [form, setForm] = useState(initialFormState);
-  const { sectionPick, questionsPerTest, examTitle, testTitle, extraPrompt, model, dryRun, noQuestionPreview, withSpeakingImages, fileJson } = form;
+  const {
+    sectionScope,
+    celpipTaskId,
+    questionsPerTest,
+    examTitle,
+    testTitle,
+    extraPrompt,
+    model,
+    dryRun,
+    noQuestionPreview,
+    withSpeakingImages,
+    fileJson,
+  } = form;
 
   const setField = useCallback((key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -90,8 +103,8 @@ export default function AdminOpenAiQuestionnaire() {
   const terminalEndRef = useRef(null);
 
   const selectedSections = useMemo(
-    () => SECTIONS.filter((s) => sectionPick[s]),
-    [sectionPick]
+    () => (sectionScope && SECTIONS.includes(sectionScope) ? [sectionScope] : []),
+    [sectionScope]
   );
 
   const requestBody = useMemo(() => {
@@ -102,7 +115,7 @@ export default function AdminOpenAiQuestionnaire() {
       dry_run: dryRun || undefined,
       no_question_preview: noQuestionPreview || undefined,
       with_speaking_images:
-        selectedSections.includes('Speaking') && withSpeakingImages ? true : undefined,
+        sectionScope === 'Speaking' && withSpeakingImages ? true : undefined,
       exam_title: examTitle.trim() || undefined,
       test_title: testTitle.trim() || undefined,
       file_json: fileJson.trim() || undefined,
@@ -116,6 +129,17 @@ export default function AdminOpenAiQuestionnaire() {
     if (selectedSections.length > 0) {
       body.sections = selectedSections;
     }
+    if (
+      sectionScope &&
+      SECTIONS.includes(sectionScope) &&
+      celpipTaskId != null &&
+      Number.isFinite(Number(celpipTaskId))
+    ) {
+      const id = Math.trunc(Number(celpipTaskId));
+      if (id >= 1) {
+        body.celpip_section_tasks = { [sectionScope]: [id] };
+      }
+    }
     return body;
   }, [
     dryRun,
@@ -125,7 +149,8 @@ export default function AdminOpenAiQuestionnaire() {
     model,
     noQuestionPreview,
     questionsPerTest,
-    selectedSections,
+    celpipTaskId,
+    sectionScope,
     testTitle,
     withSpeakingImages,
   ]);
@@ -190,19 +215,25 @@ export default function AdminOpenAiQuestionnaire() {
   /** Keep `--test-title` in sync with `--exam-title` + `--section` (overwrites manual edits when those change). */
   useEffect(() => {
     setForm((prev) => {
-      const ordered = SECTIONS.filter((s) => prev.sectionPick[s]);
+      const ordered =
+        prev.sectionScope && SECTIONS.includes(prev.sectionScope) ? [prev.sectionScope] : [];
       const next = {
         ...prev,
         testTitle: buildSuggestedTestTitle(prev.examTitle, ordered),
       };
-      if (!ordered.includes('Speaking') && prev.withSpeakingImages) {
+      if (prev.sectionScope !== 'Speaking' && prev.withSpeakingImages) {
         next.withSpeakingImages = false;
       }
       return next;
     });
-  }, [examTitle, sectionPick]);
+  }, [examTitle, sectionScope]);
 
-  const showSpeakingImagesOption = selectedSections.includes('Speaking');
+  /** Changing section clears the selected CELPIP task (tasks are section-specific). */
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, celpipTaskId: null }));
+  }, [sectionScope]);
+
+  const showSpeakingImagesOption = sectionScope === 'Speaking';
 
   return (
     <div>
@@ -248,27 +279,113 @@ export default function AdminOpenAiQuestionnaire() {
 
             <Form.Group className="mb-3">
               <Form.Label className="small fw-semibold">
-                <code className="text-body">--section</code> — OpenAI scope (repeat per section; leave all off = no filter / full
-                exam)
+                <code className="text-body">--section</code> — OpenAI scope (one section per run, or no filter)
               </Form.Label>
-              <div className="d-flex flex-wrap gap-3">
-                {SECTIONS.map((s) => (
+              <Row
+                className="g-2 row-cols-1 row-cols-sm-2 row-cols-lg-3"
+                role="radiogroup"
+                aria-label="Section scope for generation"
+              >
+                <Col>
                   <Form.Check
-                    key={s}
-                    type="checkbox"
-                    id={`sec-${s}`}
-                    label={s}
-                    checked={sectionPick[s]}
-                    onChange={(ev) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        sectionPick: { ...prev.sectionPick, [s]: ev.target.checked },
-                      }))
-                    }
+                    type="radio"
+                    name="br-openai-section-scope"
+                    id="openai-sec-all"
+                    className="small"
+                    label="All sections (no filter)"
+                    checked={sectionScope === SECTION_SCOPE_ALL}
+                    onChange={() => setField('sectionScope', SECTION_SCOPE_ALL)}
                   />
+                </Col>
+                {SECTIONS.map((s) => (
+                  <Col key={s}>
+                    <Form.Check
+                      type="radio"
+                      name="br-openai-section-scope"
+                      id={`openai-sec-${s}`}
+                      className="small"
+                      label={`${s} only`}
+                      checked={sectionScope === s}
+                      onChange={() => setField('sectionScope', s)}
+                    />
+                  </Col>
                 ))}
-              </div>
+              </Row>
+              <Form.Text className="text-muted">
+                Only one <code className="text-body">--section=</code> flag is sent per run. Choose a single skill or “All
+                sections” for an unrestricted generate.
+              </Form.Text>
             </Form.Group>
+
+            {sectionScope && selectedSections.length > 0 && (
+              <div className="mb-3">
+                <div className="small fw-semibold mb-1">CELPIP General — task type (optional)</div>
+                <p className="small text-muted mb-2">
+                  Pick at most one task for <strong>{sectionScope}</strong>, or “No task filter”. When a task is selected it
+                  is sent as <code className="text-body">celpip_section_tasks</code> and merged into the OpenAI user prompt with
+                  exact <code className="text-body">celpip_task_number</code> / <code className="text-body">celpip_task_label</code>{' '}
+                  bindings (unofficial practice; not affiliated with Paragon).
+                </p>
+                <Row className="g-2">
+                  {(() => {
+                    const sec = sectionScope;
+                    const theme = CELPIP_SECTION_CARD_THEME[sec];
+                    const tasks = CELPIP_SECTION_TASKS[sec];
+                    return (
+                      <Col key={sec} xs={12}>
+                        <div
+                          className="rounded-3 p-2 h-100"
+                          style={{
+                            borderLeft: `4px solid ${theme.border}`,
+                            background: theme.softBg,
+                          }}
+                        >
+                          <div className="d-flex align-items-center gap-2 mb-2 small fw-semibold text-body">
+                            <i className={`bi ${theme.icon}`} style={{ color: theme.border }} aria-hidden />
+                            {sec}
+                          </div>
+                          <Row
+                            className="g-2 row-cols-1 row-cols-sm-2 row-cols-lg-3"
+                            role="radiogroup"
+                            aria-label={`CELPIP tasks for ${sec}`}
+                          >
+                            <Col>
+                              <Form.Check
+                                type="radio"
+                                name={`br-openai-celpip-${sec}`}
+                                id={`celpip-${sec}-none`}
+                                className="small"
+                                label="No task filter"
+                                checked={celpipTaskId === null}
+                                onChange={() => setField('celpipTaskId', null)}
+                              />
+                            </Col>
+                            {tasks.map((t) => (
+                              <Col key={t.id}>
+                                <Form.Check
+                                  type="radio"
+                                  name={`br-openai-celpip-${sec}`}
+                                  id={`celpip-${sec}-${t.id}`}
+                                  className="small"
+                                  checked={celpipTaskId === t.id}
+                                  onChange={() => setField('celpipTaskId', t.id)}
+                                  label={
+                                    <>
+                                      <span className="text-muted">Task {t.id}</span>{' '}
+                                      <span className="fw-semibold">{t.label}</span>
+                                    </>
+                                  }
+                                />
+                              </Col>
+                            ))}
+                          </Row>
+                        </div>
+                      </Col>
+                    );
+                  })()}
+                </Row>
+              </div>
+            )}
 
             <Form.Group className="mb-3">
               <Form.Label className="small fw-semibold">
@@ -298,8 +415,8 @@ export default function AdminOpenAiQuestionnaire() {
                   </Form.Label>
                   <Form.Control value={testTitle} onChange={(e) => setField('testTitle', e.target.value)} />
                   <Form.Text className="text-muted">
-                    Updates automatically from exam + checked sections (e.g. Speaking + CELPIP General →{' '}
-                    <strong className="text-body">CELPIP General Speaking</strong>). Changing exam or sections overwrites
+                    Updates automatically from exam + section scope (e.g. Listening + CELPIP General →{' '}
+                    <strong className="text-body">CELPIP General Listening</strong>). Changing exam or section overwrites
                     this field; you can still edit it before Run.
                   </Form.Text>
                 </Form.Group>

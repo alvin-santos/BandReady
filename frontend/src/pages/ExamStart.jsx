@@ -72,7 +72,7 @@ function formatTestDuration(minutes) {
   return `${h} hr ${r} min`;
 }
 
-/** @param {{ questions_count?: number; questions_to_show?: number | null }} test */
+/** @param {{ questions_count?: number; questions_to_show?: number | null; celpip_questions_per_task?: Record<string, number> | null }} test */
 function effectiveTestQuestionCount(test) {
   const raw = test.questions_count;
   if (raw == null) {
@@ -82,14 +82,30 @@ function effectiveTestQuestionCount(test) {
   if (!Number.isFinite(total) || total < 0) {
     return null;
   }
+  let pool = total;
+  const taskCaps = test.celpip_questions_per_task;
+  if (taskCaps && typeof taskCaps === 'object') {
+    let sum = 0;
+    let any = false;
+    for (const v of Object.values(taskCaps)) {
+      const n = Math.trunc(Number(v));
+      if (Number.isFinite(n) && n >= 0) {
+        sum += n;
+        any = true;
+      }
+    }
+    if (any && sum > 0) {
+      pool = Math.min(pool, sum);
+    }
+  }
   const capRaw = test.questions_to_show;
   if (capRaw != null) {
     const cap = Math.trunc(Number(capRaw));
     if (Number.isFinite(cap) && cap > 0) {
-      return Math.min(total, cap);
+      return Math.min(pool, cap);
     }
   }
-  return total;
+  return pool;
 }
 
 /** @param {number} n */
@@ -211,7 +227,12 @@ export default function ExamStart() {
     } catch (e) {
       const code = e.response?.data?.code;
       const msg = e.response?.data?.message;
-      if (e.response?.status === 403) {
+      if (e.response?.status === 422 && code === 'empty_question_pool') {
+        alert(
+          msg ||
+            'This test has no questions to show. An admin should adjust per-task limits or add questions.'
+        );
+      } else if (e.response?.status === 403) {
         if (code === 'subscription_required') {
           alert(msg || 'This test requires an active subscription.');
         } else if (code === 'speaking_limit_reached') {

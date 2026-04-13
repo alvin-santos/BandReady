@@ -15,6 +15,7 @@ use App\Services\OpenAiWritingFeedbackService;
 use App\Services\QuestionGrader;
 use App\Services\SpeakingAiSuspensionService;
 use App\Services\StatisticsRecorder;
+use App\Support\CelpipTestQuestionLimits;
 use App\Support\IeltsAiSpeaking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -78,10 +79,17 @@ class AttemptController extends Controller
         if ($fromIeltsSpeakingOrder) {
             $orderIds = $ieltsOrder;
         } else {
-            $orderIds = $canonical->pluck('id')->all();
+            $pool = CelpipTestQuestionLimits::applyPerTaskCaps($canonical, $test->celpip_questions_per_task);
+            if ($pool->isEmpty()) {
+                return response()->json([
+                    'message' => 'This test has no questions to show. Adjust per-task limits or add questions.',
+                    'code' => 'empty_question_pool',
+                ], 422);
+            }
+            $orderIds = $pool->pluck('id')->all();
             $cap = $test->questions_to_show;
             if ($cap !== null && $cap > 0 && count($orderIds) > $cap) {
-                $orderIds = $this->pickQuestionIdsRespectingImageMinimum($canonical, $cap);
+                $orderIds = $this->pickQuestionIdsRespectingImageMinimum($pool, $cap);
             } else {
                 shuffle($orderIds);
             }

@@ -13,7 +13,7 @@ class AdminOpenAiQuestionnaireController extends Controller
     public function run(Request $request, OpenAiQuestionnaireService $service): JsonResponse
     {
         $validated = $request->validate([
-            'sections' => 'sometimes|array',
+            'sections' => 'sometimes|array|max:1',
             'sections.*' => 'string|in:Listening,Reading,Writing,Speaking',
             'questions_per_test' => 'sometimes|nullable|integer|min:1',
             'exam_title' => 'sometimes|string|nullable|max:255',
@@ -24,6 +24,7 @@ class AdminOpenAiQuestionnaireController extends Controller
             'no_question_preview' => 'sometimes|boolean',
             'with_speaking_images' => 'sometimes|boolean',
             'file_json' => 'sometimes|string|nullable|max:5242880',
+            'celpip_section_tasks' => 'sometimes|nullable|array',
         ]);
 
         $examTitle = trim((string) ($validated['exam_title'] ?? ''));
@@ -40,8 +41,13 @@ class AdminOpenAiQuestionnaireController extends Controller
             $sections = null;
         }
 
-        $output = new BufferedOutput();
+        $output = new BufferedOutput;
         $output->setDecorated(false);
+
+        $celpipTasks = $validated['celpip_section_tasks'] ?? null;
+        if (is_array($celpipTasks) && $celpipTasks === []) {
+            $celpipTasks = null;
+        }
 
         $result = $service->runPipeline($output, [
             'file_path' => null,
@@ -55,6 +61,7 @@ class AdminOpenAiQuestionnaireController extends Controller
             'dry_run' => (bool) ($validated['dry_run'] ?? false),
             'no_question_preview' => (bool) ($validated['no_question_preview'] ?? false),
             'with_speaking_images' => (bool) ($validated['with_speaking_images'] ?? false),
+            'celpip_section_tasks' => is_array($celpipTasks) ? $celpipTasks : null,
         ]);
 
         $text = $output->fetch();

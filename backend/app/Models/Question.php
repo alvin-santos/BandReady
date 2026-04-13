@@ -20,12 +20,15 @@ class Question extends Model
         'correct_answer',
         'explanation',
         'order',
+        'celpip_task_number',
+        'celpip_task_label',
     ];
 
     protected function casts(): array
     {
         return [
             'options_json' => 'array',
+            'celpip_task_number' => 'integer',
         ];
     }
 

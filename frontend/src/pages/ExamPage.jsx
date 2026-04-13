@@ -464,6 +464,7 @@ export default function ExamPage() {
         rightRailExtra={
           isSubscribed && !isAdmin ? null : <AdSlot location="exam_rail_right" ad={examRailAds.exam_rail_right} />
         }
+        questionNavQuestions={questions}
       >
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
           <div className="d-flex align-items-center gap-2">
