@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\GoogleAuthController;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
@@ -50,6 +51,11 @@ Route::get('/robots.txt', function () {
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])
+    ->middleware('throttle:30,1');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
+    ->middleware('throttle:30,1');
 
 Route::get('/email/verify/{id}/{hash}', function (Request $request) {
     $user = User::query()->findOrFail($request->route('id'));

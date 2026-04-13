@@ -15,6 +15,7 @@ import ExamStart from './pages/ExamStart.jsx';
 import ExamPage from './pages/ExamPage.jsx';
 import Results from './pages/Results.jsx';
 import Profile from './pages/Profile.jsx';
+import GoogleAuthCallback from './pages/GoogleAuthCallback.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import VerifyEmail from './pages/VerifyEmail.jsx';
@@ -90,6 +91,7 @@ export const router = createBrowserRouter([
       { path: 'forum/thread/:threadId', element: <ForumThread /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
+      { path: 'auth/google', element: <GoogleAuthCallback /> },
       {
         path: 'verify-email',
         element: (

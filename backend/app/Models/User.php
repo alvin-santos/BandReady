@@ -26,6 +26,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'google_id',
+        'google_avatar',
         'role',
         'subscription_expires_at',
         'progress_reminder_sent_at',
@@ -61,6 +63,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'name' => $this->name,
             'email' => $this->email,
             'email_verified' => $this->hasVerifiedEmail(),
+            'created_at' => $this->created_at?->toIso8601String(),
             'role' => $this->role,
             'is_subscribed' => $this->isSubscribed(),
             'subscription_expires_at' => $this->subscription_expires_at?->toIso8601String(),
@@ -69,6 +72,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'speaking_ai_suspended' => $suspended,
             'speaking_ai_suspended_at' => $this->speaking_ai_suspended_at?->toIso8601String(),
             'speaking_ai_suspension_notice' => $suspended ? (string) ($this->speaking_ai_suspension_notice ?? '') : null,
+            'google_linked' => $this->google_id !== null,
+            'google_avatar' => $this->google_avatar,
         ];
     }
 

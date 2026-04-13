@@ -34,6 +34,10 @@ const EXACT = {
     description:
       'Create a free BandReady account for online IELTS and CELPIP practice: save attempts, unlock Listening & Speaking, analytics, and Pro options.',
   },
+  '/auth/google': {
+    title: 'Google sign-in',
+    description: 'Completing Google sign-in for your BandReady account.',
+  },
   '/verify-email': {
     title: 'Verify email',
     description: 'Confirm your email address to finish setting up your BandReady account.',

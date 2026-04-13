@@ -5,13 +5,14 @@ import FloatingBgIcons from './FloatingBgIcons.jsx';
 import PracticeNudge from './PracticeNudge.jsx';
 import RouteSeo from './RouteSeo.jsx';
 import SiteTrafficRecorder from './SiteTrafficRecorder.jsx';
+import ProBadge from './ProBadge.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { THEME_SWITCH_UI_ENABLED, useTheme } from '../context/ThemeContext.jsx';
 
 const navItem = 'd-flex align-items-center gap-2';
 
 export default function MainLayout() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isSubscribed } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const verified = user?.email_verified;
@@ -54,6 +55,7 @@ export default function MainLayout() {
               <Nav.Link as={Link} to="/subscription" className={navItem}>
                 <i className="bi bi-star-fill" aria-hidden />
                 Pro
+                {user && isSubscribed && <ProBadge variant="nav" className="ms-1" />}
               </Nav.Link>
               <Nav.Link as={Link} to="/forum" className={navItem}>
                 <i className="bi bi-chat-square-text" aria-hidden />
@@ -96,6 +98,7 @@ export default function MainLayout() {
                   <Nav.Link as={Link} to="/profile" className={navItem}>
                     <i className="bi bi-person-circle" aria-hidden />
                     Profile
+                    {isSubscribed && <ProBadge variant="nav" className="ms-1" />}
                   </Nav.Link>
                   <NavDropdown
                     title={
