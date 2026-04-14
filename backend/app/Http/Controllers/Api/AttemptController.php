@@ -90,7 +90,8 @@ class AttemptController extends Controller
             $cap = $test->questions_to_show;
             if ($cap !== null && $cap > 0 && count($orderIds) > $cap) {
                 $orderIds = $this->pickQuestionIdsRespectingImageMinimum($pool, $cap);
-            } else {
+            } elseif (! $this->questionPoolUsesCelpipTasks($pool)) {
+                // Preserve bank `order` / per-task merge order for CELPIP-style tests; shuffle only generic banks.
                 shuffle($orderIds);
             }
         }
@@ -491,6 +492,16 @@ class AttemptController extends Controller
      * @param  Collection<int, Question>  $questionsOrdered
      * @return list<int>
      */
+    /**
+     * True when the pool includes official-style CELPIP task numbers — attempt order should follow the bank, not shuffle().
+     *
+     * @param  Collection<int, Question>  $pool
+     */
+    private function questionPoolUsesCelpipTasks(Collection $pool): bool
+    {
+        return $pool->contains(fn (Question $q) => $q->celpip_task_number !== null && (int) $q->celpip_task_number >= 1);
+    }
+
     private function pickQuestionIdsRespectingImageMinimum(Collection $questionsOrdered, int $cap): array
     {
         $allIds = $questionsOrdered->pluck('id')->values()->all();

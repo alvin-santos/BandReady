@@ -128,8 +128,8 @@ export default function Home() {
               In-browser exam simulation
             </p>
             <h1 className="display-5 fw-bold mb-3">
-              <span className="text-br-rose">IELTS &amp; CELPIP</span> practice that{' '}
-              <span className="text-body">feels like the actual exam</span>—in your browser.
+              <span className="text-br-rose">IELTS &amp; CELPIP</span> practice with{' '}
+              <span className="text-body">exam-style timing and on-screen flow</span>—in your browser.
             </h1>
             <p className="lead text-muted mb-3">
               {user ? (

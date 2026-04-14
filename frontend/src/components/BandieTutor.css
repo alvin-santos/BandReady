@@ -1,0 +1,302 @@
+/* Bandie floating tutor — above rails, modals, sticky chrome */
+.br-bandie-root {
+  position: fixed;
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 11000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: min(22rem, calc(100vw - 1.25rem));
+  pointer-events: none;
+}
+
+.br-bandie-root > * {
+  pointer-events: auto;
+}
+
+.br-bandie-bubble-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  opacity: 0;
+  transform: translateY(0.5rem);
+  visibility: hidden;
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    visibility 0.28s;
+}
+
+.br-bandie-bubble-wrap--open {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.br-bandie-bubble {
+  position: relative;
+  width: 100%;
+  padding: 0.65rem 0.75rem 0.5rem;
+  border-radius: 1rem;
+  background: var(--br-surface);
+  border: 1px solid color-mix(in srgb, var(--br-border) 85%, var(--br-blush-edge));
+  box-shadow:
+    0 4px 24px rgba(15, 23, 42, 0.12),
+    0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='dark'] .br-bandie-bubble {
+  box-shadow:
+    0 4px 28px rgba(0, 0, 0, 0.45),
+    0 12px 48px rgba(0, 0, 0, 0.35);
+}
+
+/* Arrow pointing toward Bandie (above wider figure) */
+.br-bandie-bubble::after {
+  content: '';
+  position: absolute;
+  right: clamp(2rem, 28%, 4.5rem);
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  background: var(--br-surface);
+  border-right: 1px solid color-mix(in srgb, var(--br-border) 85%, var(--br-blush-edge));
+  border-bottom: 1px solid color-mix(in srgb, var(--br-border) 85%, var(--br-blush-edge));
+  transform: rotate(45deg);
+  border-radius: 0 0 2px 0;
+}
+
+.br-bandie-bubble-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.br-bandie-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--br-text-rose);
+}
+
+.br-bandie-actions {
+  display: flex;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.br-bandie-actions .btn {
+  padding: 0.1rem 0.35rem;
+  line-height: 1;
+  min-height: 0;
+  border: none;
+  opacity: 0.75;
+}
+
+.br-bandie-actions .btn:hover {
+  opacity: 1;
+}
+
+.br-bandie-message {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--br-text);
+  margin: 0;
+  padding-right: 0.25rem;
+}
+
+.br-bandie-tip-nav {
+  margin-top: 0.5rem;
+}
+
+.br-bandie-next-tip-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+}
+
+.br-bandie-dismiss-link {
+  font-size: 0.65rem;
+  margin-top: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--bs-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.br-bandie-dismiss-link:hover {
+  color: var(--br-text);
+}
+
+.br-bandie-avatar-wrap {
+  position: relative;
+  align-self: flex-end;
+  display: inline-block;
+  line-height: 0;
+}
+
+.br-bandie-image-temp-hide-zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.br-bandie-image-temp-hide-zone:hover,
+.br-bandie-image-temp-hide-zone:focus-visible {
+  background: rgba(15, 23, 42, 0.07);
+}
+
+.br-bandie-image-temp-hide-zone:focus-visible {
+  outline: 2px solid var(--br-accent);
+  outline-offset: -2px;
+}
+
+[data-theme='dark'] .br-bandie-image-temp-hide-zone:hover,
+[data-theme='dark'] .br-bandie-image-temp-hide-zone:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.br-bandie-restore-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--br-border) 85%, var(--br-blush-edge));
+  background: var(--br-surface);
+  box-shadow:
+    0 4px 18px rgba(15, 23, 42, 0.1),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--br-text);
+  pointer-events: auto;
+}
+
+.br-bandie-restore-chip:hover {
+  filter: brightness(1.02);
+}
+
+.br-bandie-restore-chip:focus-visible {
+  outline: 2px solid var(--br-accent);
+  outline-offset: 2px;
+}
+
+[data-theme='dark'] .br-bandie-restore-chip {
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.br-bandie-restore-thumb {
+  width: 2.25rem;
+  height: 2.25rem;
+  object-fit: contain;
+  object-position: bottom center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.br-bandie-restore-label {
+  padding-right: 0.15rem;
+  white-space: nowrap;
+}
+
+.br-bandie-avatar-btn {
+  align-self: flex-end;
+  width: 10.5rem;
+  max-width: min(10.5rem, 42vw);
+  height: auto;
+  padding: 0;
+  line-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  cursor: pointer;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.br-bandie-avatar-btn:hover {
+  transform: translateY(-2px);
+}
+
+.br-bandie-avatar-btn:focus-visible {
+  outline: 2px solid var(--br-accent);
+  outline-offset: 2px;
+}
+
+.br-bandie-avatar-btn img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(48vh, 22rem);
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 6px 14px rgba(15, 23, 42, 0.2));
+  transition: filter 0.2s ease;
+}
+
+.br-bandie-avatar-btn:hover img {
+  filter: drop-shadow(0 10px 22px rgba(15, 23, 42, 0.26));
+}
+
+[data-theme='dark'] .br-bandie-avatar-btn img {
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55));
+}
+
+[data-theme='dark'] .br-bandie-avatar-btn:hover img {
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.65));
+}
+
+@media (max-width: 575.98px) {
+  .br-bandie-root {
+    max-width: min(19rem, calc(100vw - 0.75rem));
+    right: max(0.35rem, env(safe-area-inset-right));
+    bottom: max(0.35rem, env(safe-area-inset-bottom));
+  }
+
+  .br-bandie-avatar-btn {
+    width: 7.25rem;
+    max-width: min(7.25rem, 38vw);
+  }
+
+  .br-bandie-avatar-btn img {
+    max-height: min(40vh, 15rem);
+  }
+
+  .br-bandie-bubble::after {
+    right: clamp(1.5rem, 26%, 3.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .br-bandie-bubble-wrap {
+    transition: none;
+  }
+
+  .br-bandie-avatar-btn {
+    transition: none;
+  }
+}

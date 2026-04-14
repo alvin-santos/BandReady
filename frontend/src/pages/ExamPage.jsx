@@ -24,6 +24,7 @@ import ExamLayout from '../components/ExamLayout.jsx';
 import ListeningTtsPlayer from '../components/ListeningTtsPlayer.jsx';
 import QuestionCard from '../components/QuestionCard.jsx';
 import AdSlot from '../components/AdSlot.jsx';
+import { DEFAULT_SECTION, useBandieTutor } from '../context/BandieTutorContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatAudioScriptForDisplay } from '../utils/ttsDialogue.js';
 import { isIeltsAiSpeakingQuestion, isSpeakingPictureTaskQuestion } from '../utils/ieltsAiSpeaking.js';
@@ -45,6 +46,7 @@ const emptyExamRailAds = {
 };
 
 export default function ExamPage() {
+  const { setTutorSection } = useBandieTutor();
   const { isAdmin, isSubscribed, loading: authLoading } = useAuth();
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -257,6 +259,18 @@ export default function ExamPage() {
     const m = Number(attempt.forward_only_min_allowed_index ?? 0);
     setCurrent((prev) => clampIndex(Math.max(prev, m), questions.length));
   }, [attempt?.id, attempt?.forward_only, attempt?.forward_only_min_allowed_index, questions.length]);
+
+  useEffect(() => {
+    const name = test?.section?.name;
+    if (!name) {
+      setTutorSection(DEFAULT_SECTION);
+      return undefined;
+    }
+    setTutorSection(name);
+    return () => {
+      setTutorSection(DEFAULT_SECTION);
+    };
+  }, [test?.section?.name, setTutorSection]);
 
   const q = questions[current];
   const total = questions.length;

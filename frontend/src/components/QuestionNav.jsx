@@ -31,6 +31,11 @@ function buildNavGroups(questions) {
     groups.get(key).indices.push(index);
   });
   return [...groups.values()].sort((a, b) => {
+    const minA = Math.min(...a.indices);
+    const minB = Math.min(...b.indices);
+    if (minA !== minB) {
+      return minA - minB;
+    }
     if (a.taskNum !== b.taskNum) {
       return a.taskNum - b.taskNum;
     }

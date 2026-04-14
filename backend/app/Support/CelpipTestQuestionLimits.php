@@ -54,8 +54,23 @@ final class CelpipTestQuestionLimits
                 : '_ungrouped';
         });
 
+        $taskKeys = $grouped->keys()->sort(function ($a, $b) {
+            if ($a === '_ungrouped') {
+                return 1;
+            }
+            if ($b === '_ungrouped') {
+                return -1;
+            }
+
+            return (int) $a <=> (int) $b;
+        })->values();
+
         $picked = collect();
-        foreach ($grouped as $taskKey => $group) {
+        foreach ($taskKeys as $taskKey) {
+            $group = $grouped->get($taskKey);
+            if ($group === null) {
+                continue;
+            }
             $group = $group->values();
             if ($taskKey === '_ungrouped') {
                 $picked = $picked->merge($group);

@@ -1,11 +1,13 @@
 import { Container, Nav, Navbar, NavDropdown } from 'react-bootstrap';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import AppDisclaimer from './AppDisclaimer.jsx';
+import BandieTutor from './BandieTutor.jsx';
 import FloatingBgIcons from './FloatingBgIcons.jsx';
 import PracticeNudge from './PracticeNudge.jsx';
 import RouteSeo from './RouteSeo.jsx';
 import SiteTrafficRecorder from './SiteTrafficRecorder.jsx';
 import ProBadge from './ProBadge.jsx';
+import { BandieTutorProvider } from '../context/BandieTutorContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { THEME_SWITCH_UI_ENABLED, useTheme } from '../context/ThemeContext.jsx';
 
@@ -18,6 +20,7 @@ export default function MainLayout() {
   const verified = user?.email_verified;
 
   return (
+    <BandieTutorProvider>
     <div className="d-flex flex-column min-vh-100">
       <RouteSeo />
       <SiteTrafficRecorder />
@@ -179,6 +182,7 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <PracticeNudge />
+      <BandieTutor />
       <footer
         className="br-page-stack border-top mt-auto py-4"
         style={{ borderColor: 'color-mix(in srgb, var(--br-blush-edge) 40%, var(--br-border))' }}
@@ -188,5 +192,6 @@ export default function MainLayout() {
         </Container>
       </footer>
     </div>
+    </BandieTutorProvider>
   );
 }
