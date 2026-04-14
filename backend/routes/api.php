@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\Admin\AdminDownloadableController;
 use App\Http\Controllers\Api\Admin\AdminExamController;
 use App\Http\Controllers\Api\Admin\AdminOpenAiQuestionnaireController;
 use App\Http\Controllers\Api\Admin\AdminQuestionController;
+use App\Http\Controllers\Api\Admin\AdminBandieTutorSettingsController;
+use App\Http\Controllers\Api\Admin\AdminExamNavSettingsController;
 use App\Http\Controllers\Api\Admin\AdminRankingSettingsController;
 use App\Http\Controllers\Api\Admin\AdminSectionController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\Api\Admin\AdminTestController;
 use App\Http\Controllers\Api\Admin\AdminTtsVoiceSettingsController;
 use App\Http\Controllers\Api\AdPublicController;
 use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\Api\BandieTutorSettingsController;
 use App\Http\Controllers\Api\AttemptController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactMessageController;
@@ -57,6 +60,7 @@ Route::post('/subscription/webhook', StripeWebhookController::class)
     ->middleware('throttle:120,1');
 
 Route::get('/tts-voice-settings', [TtsVoiceSettingsController::class, 'publicIndex']);
+Route::get('/bandie-tutor-settings', [BandieTutorSettingsController::class, 'publicIndex']);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -145,6 +149,12 @@ Route::middleware(['auth:sanctum', 'verified', 'admin'])->prefix('admin')->group
 
     Route::get('/ranking-settings', [AdminRankingSettingsController::class, 'show']);
     Route::put('/ranking-settings', [AdminRankingSettingsController::class, 'update']);
+
+    Route::get('/bandie-tutor-settings', [AdminBandieTutorSettingsController::class, 'show']);
+    Route::put('/bandie-tutor-settings', [AdminBandieTutorSettingsController::class, 'update']);
+
+    Route::get('/exam-nav-settings', [AdminExamNavSettingsController::class, 'show']);
+    Route::put('/exam-nav-settings', [AdminExamNavSettingsController::class, 'update']);
 
     Route::get('/tts-voice-settings', [AdminTtsVoiceSettingsController::class, 'show']);
     Route::put('/tts-voice-settings', [AdminTtsVoiceSettingsController::class, 'update']);

@@ -36,6 +36,8 @@ import AdminTtsVoices from './pages/AdminTtsVoices.jsx';
 import AdminContactMessages from './pages/AdminContactMessages.jsx';
 import AdminOpenAiQuestionnaire from './pages/AdminOpenAiQuestionnaire.jsx';
 import AdminDatabaseBackups from './pages/AdminDatabaseBackups.jsx';
+import AdminBandieTutor from './pages/AdminBandieTutor.jsx';
+import AdminExamNav from './pages/AdminExamNav.jsx';
 
 function Private({ children }) {
   const { user, loading } = useAuth();
@@ -152,11 +154,13 @@ export const router = createBrowserRouter([
           { path: 'exams', element: <AdminExams /> },
           { path: 'sections', element: <AdminSections /> },
           { path: 'tests', element: <AdminTests /> },
+          { path: 'exam-nav', element: <AdminExamNav /> },
           { path: 'questions', element: <AdminQuestions /> },
           { path: 'openai-questionnaire', element: <AdminOpenAiQuestionnaire /> },
           { path: 'ads', element: <AdminAds /> },
           { path: 'stats', element: <AdminStats /> },
           { path: 'ranking-settings', element: <AdminRanking /> },
+          { path: 'bandie-tutor', element: <AdminBandieTutor /> },
           { path: 'downloadables', element: <AdminDownloads /> },
           { path: 'tts-voices', element: <AdminTtsVoices /> },
           { path: 'messages', element: <AdminContactMessages /> },

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Answer;
 use App\Models\Attempt;
 use App\Models\Question;
+use App\Models\SiteSetting;
 use App\Models\Test;
 use App\Models\User;
 use App\Services\ExamAccessService;
@@ -79,7 +80,14 @@ class AttemptController extends Controller
         if ($fromIeltsSpeakingOrder) {
             $orderIds = $ieltsOrder;
         } else {
-            $pool = CelpipTestQuestionLimits::applyPerTaskCaps($canonical, $test->celpip_questions_per_task);
+            $siteDefaults = SiteSetting::current()->celpip_default_questions_per_task;
+            $siteDefaults = is_array($siteDefaults) ? $siteDefaults : null;
+            $effectiveCaps = CelpipTestQuestionLimits::mergeSiteDefaultsWithTestCaps(
+                $test->celpip_questions_per_task,
+                $test->section?->name,
+                $siteDefaults
+            );
+            $pool = CelpipTestQuestionLimits::applyPerTaskCaps($canonical, $effectiveCaps);
             if ($pool->isEmpty()) {
                 return response()->json([
                     'message' => 'This test has no questions to show. Adjust per-task limits or add questions.',

@@ -11,6 +11,8 @@ class SiteSetting extends Model
         'rankings_merge_fake',
         'rankings_fake_entries',
         'tts_disabled_voice_keys',
+        'bandie_tutor_enabled',
+        'celpip_default_questions_per_task',
     ];
 
     protected function casts(): array
@@ -20,6 +22,8 @@ class SiteSetting extends Model
             'rankings_merge_fake' => 'boolean',
             'rankings_fake_entries' => 'array',
             'tts_disabled_voice_keys' => 'array',
+            'bandie_tutor_enabled' => 'boolean',
+            'celpip_default_questions_per_task' => 'array',
         ];
     }
 
@@ -31,6 +35,7 @@ class SiteSetting extends Model
                 'rankings_public_enabled' => true,
                 'rankings_merge_fake' => true,
                 'rankings_fake_entries' => [],
+                'bandie_tutor_enabled' => true,
             ]
         );
     }

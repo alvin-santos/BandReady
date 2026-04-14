@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Question;
-use App\Models\Test;
 use Illuminate\Support\Collection;
 
 /**
@@ -34,6 +33,50 @@ final class CelpipTestQuestionLimits
         }
 
         return $out;
+    }
+
+    /**
+     * Merge site-wide defaults (per section + official task number) with a test’s {@see Test::$celpip_questions_per_task}.
+     * Test keys override defaults. Section must match {@see CelpipOfficialTaskCatalog::TASKS_BY_SECTION}.
+     *
+     * @param  array<mixed, mixed>|null  $testCapsRaw  task number => max (0 = exclude)
+     * @param  array<string, array<string|int, mixed>>|null  $siteDefaultsBySection  e.g. ['Listening' => ['1' => 2, '3' => 3]]
+     * @return array<string, int>|null  map for {@see applyPerTaskCaps}; null = no caps
+     */
+    public static function mergeSiteDefaultsWithTestCaps(?array $testCapsRaw, ?string $sectionName, ?array $siteDefaultsBySection): ?array
+    {
+        $sectionName = trim((string) $sectionName);
+        if ($sectionName === '' || ! isset(CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName])) {
+            return $testCapsRaw;
+        }
+
+        $merged = [];
+        $sectionDefaults = [];
+        if (is_array($siteDefaultsBySection) && isset($siteDefaultsBySection[$sectionName]) && is_array($siteDefaultsBySection[$sectionName])) {
+            $sectionDefaults = $siteDefaultsBySection[$sectionName];
+        }
+        foreach (array_keys(CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName]) as $taskNum) {
+            $k = (string) $taskNum;
+            if (! array_key_exists($k, $sectionDefaults) && ! array_key_exists($taskNum, $sectionDefaults)) {
+                continue;
+            }
+            $v = $sectionDefaults[$k] ?? $sectionDefaults[$taskNum] ?? null;
+            if ($v === null || ! is_numeric($v)) {
+                continue;
+            }
+            $merged[$k] = max(0, min(500, (int) $v));
+        }
+
+        if (is_array($testCapsRaw)) {
+            foreach ($testCapsRaw as $k => $v) {
+                if (! is_numeric($k) || ! is_numeric($v)) {
+                    continue;
+                }
+                $merged[(string) (int) $k] = max(0, min(500, (int) $v));
+            }
+        }
+
+        return $merged === [] ? null : $merged;
     }
 
     /**

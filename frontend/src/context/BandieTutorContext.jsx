@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { api } from '../api/client.js';
 
 const LS_DISMISS = 'bandie-dismissed';
 const LS_INTRO = 'bandie-intro-seen';
@@ -80,7 +81,28 @@ const BandieContext = createContext(null);
 
 export function BandieTutorProvider({ children }) {
   const location = useLocation();
-  const hideChrome = location.pathname.startsWith('/admin');
+  const [siteBandieEnabled, setSiteBandieEnabled] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get('/bandie-tutor-settings')
+      .then((res) => {
+        if (!cancelled) {
+          setSiteBandieEnabled(!!res.data.bandie_tutor_enabled);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSiteBandieEnabled(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const hideChrome = location.pathname.startsWith('/admin') || !siteBandieEnabled;
 
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(LS_DISMISS) === '1');
   const [section, setSectionState] = useState(DEFAULT_SECTION);
