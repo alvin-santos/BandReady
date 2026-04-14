@@ -38,6 +38,8 @@ return [
         'r2_disk' => env('BANDREADY_DATABASE_BACKUP_R2_DISK', 'r2'),
         'r2_prefix' => env('BANDREADY_DATABASE_BACKUP_R2_PREFIX', 'database-backups'),
         'r2_max_files' => max(1, (int) env('BANDREADY_DATABASE_BACKUP_R2_MAX_FILES', 10)),
+        /** Presigned GET lifetime for admin “download” (minutes, 1–120). */
+        'download_url_ttl_minutes' => max(1, min(120, (int) env('BANDREADY_DATABASE_BACKUP_DOWNLOAD_TTL_MINUTES', 15))),
     ],
 
 ];

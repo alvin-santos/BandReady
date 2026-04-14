@@ -159,6 +159,8 @@ Route::middleware(['auth:sanctum', 'verified', 'admin'])->prefix('admin')->group
     Route::post('/contact-messages/{id}/unread', [AdminContactMessageController::class, 'markUnread'])->whereNumber('id');
 
     Route::get('/database-backups', [AdminDatabaseBackupController::class, 'index']);
+    Route::get('/database-backups/download-url', [AdminDatabaseBackupController::class, 'downloadUrl'])
+        ->middleware('throttle:60,1');
     Route::post('/database-backups/run', [AdminDatabaseBackupController::class, 'run'])
         ->middleware('throttle:5,1');
 });

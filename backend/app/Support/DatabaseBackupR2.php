@@ -97,6 +97,22 @@ final class DatabaseBackupR2
         return self::prefix().'/'.ltrim($zipBasename, '/');
     }
 
+    /** Whether the object key is under our backup prefix and safe to expose for presigned download. */
+    public static function isAllowedBackupObjectKey(string $key): bool
+    {
+        $key = str_replace('\\', '/', $key);
+        if ($key === '' || str_contains($key, '..')) {
+            return false;
+        }
+
+        $expectedPrefix = self::prefix().'/';
+        if (! str_starts_with($key, $expectedPrefix)) {
+            return false;
+        }
+
+        return str_ends_with(strtolower($key), '.zip');
+    }
+
     /**
      * @return list<array{key: string, name: string, size: int, last_modified: string}>
      */

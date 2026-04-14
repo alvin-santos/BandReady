@@ -63,28 +63,44 @@ return [
         /*
         | Cloudflare R2 (S3-compatible). Set R2_* in .env, or omit R2_* to fall back to AWS_* when
         | the same credentials/bucket are used for R2.
+        |
+        | R2_ENDPOINT must be the account root only, e.g.
+        |   https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+        | Do not append /{bucket} — Laravel adds the bucket; a duplicated path causes ListObjects NoSuchKey.
         */
-        'r2' => [
-            'driver' => 's3',
-            'key' => env('R2_ACCESS_KEY_ID', env('AWS_ACCESS_KEY_ID')),
-            'secret' => env('R2_SECRET_ACCESS_KEY', env('AWS_SECRET_ACCESS_KEY')),
-            'region' => env('R2_DEFAULT_REGION', 'auto'),
-            'bucket' => env('R2_BUCKET', env('AWS_BUCKET')),
-            'url' => env('R2_URL', env('AWS_URL')),
-            /*
-            | Cloudflare R2 public *.r2.dev URLs are typically https://pub-….r2.dev/{bucket}/{objectKey}.
-            | Laravel's S3 driver builds https://pub-….r2.dev/{objectKey} unless the bucket is appended here.
-            | Set R2_URL_INCLUDE_BUCKET=false if R2_URL already ends with /{bucket} or you use a custom domain at bucket root.
-            */
-            'url_include_bucket' => filter_var(env('R2_URL_INCLUDE_BUCKET', true), FILTER_VALIDATE_BOOLEAN),
-            'endpoint' => env('R2_ENDPOINT', env('AWS_ENDPOINT')),
-            'use_path_style_endpoint' => filter_var(
-                env('R2_USE_PATH_STYLE_ENDPOINT', env('AWS_USE_PATH_STYLE_ENDPOINT', true)),
-                FILTER_VALIDATE_BOOLEAN
-            ),
-            'throw' => false,
-            'report' => false,
-        ],
+        'r2' => (static function () {
+            $endpoint = env('R2_ENDPOINT', env('AWS_ENDPOINT'));
+            $bucket = env('R2_BUCKET', env('AWS_BUCKET'));
+            if (is_string($endpoint) && $endpoint !== '' && is_string($bucket) && $bucket !== '') {
+                $trimmed = rtrim($endpoint, '/');
+                $suffix = '/'.$bucket;
+                if (str_ends_with($trimmed, $suffix)) {
+                    $endpoint = substr($trimmed, 0, -strlen($suffix));
+                }
+            }
+
+            return [
+                'driver' => 's3',
+                'key' => env('R2_ACCESS_KEY_ID', env('AWS_ACCESS_KEY_ID')),
+                'secret' => env('R2_SECRET_ACCESS_KEY', env('AWS_SECRET_ACCESS_KEY')),
+                'region' => env('R2_DEFAULT_REGION', 'auto'),
+                'bucket' => env('R2_BUCKET', env('AWS_BUCKET')),
+                'url' => env('R2_URL', env('AWS_URL')),
+                /*
+                | Cloudflare R2 public *.r2.dev URLs are typically https://pub-….r2.dev/{bucket}/{objectKey}.
+                | Laravel's S3 driver builds https://pub-….r2.dev/{objectKey} unless the bucket is appended here.
+                | Set R2_URL_INCLUDE_BUCKET=false if R2_URL already ends with /{bucket} or you use a custom domain at bucket root.
+                */
+                'url_include_bucket' => filter_var(env('R2_URL_INCLUDE_BUCKET', true), FILTER_VALIDATE_BOOLEAN),
+                'endpoint' => $endpoint,
+                'use_path_style_endpoint' => filter_var(
+                    env('R2_USE_PATH_STYLE_ENDPOINT', env('AWS_USE_PATH_STYLE_ENDPOINT', true)),
+                    FILTER_VALIDATE_BOOLEAN
+                ),
+                'throw' => false,
+                'report' => false,
+            ];
+        })(),
 
     ],
 

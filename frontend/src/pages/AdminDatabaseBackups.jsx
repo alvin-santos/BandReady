@@ -22,6 +22,8 @@ export default function AdminDatabaseBackups() {
   const [error, setError] = useState(null);
   const [running, setRunning] = useState(false);
   const [runFeedback, setRunFeedback] = useState(null);
+  const [downloadError, setDownloadError] = useState(null);
+  const [downloadingKey, setDownloadingKey] = useState(null);
 
   const loadList = useCallback(async () => {
     setError(null);
@@ -51,6 +53,24 @@ export default function AdminDatabaseBackups() {
       cancelled = true;
     };
   }, [loadList]);
+
+  async function downloadBackup(key) {
+    setDownloadError(null);
+    setDownloadingKey(key);
+    try {
+      const res = await api.get('/admin/database-backups/download-url', { params: { key } });
+      const url = res.data?.url;
+      if (!url) {
+        setDownloadError('No download URL returned.');
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      setDownloadError(e?.response?.data?.message || 'Could not create download link.');
+    } finally {
+      setDownloadingKey(null);
+    }
+  }
 
   async function runBackup() {
     setRunning(true);
@@ -114,6 +134,12 @@ export default function AdminDatabaseBackups() {
 
       {error ? <Alert variant="danger">{error}</Alert> : null}
 
+      {downloadError ? (
+        <Alert variant="danger" dismissible onClose={() => setDownloadError(null)}>
+          {downloadError}
+        </Alert>
+      ) : null}
+
       {runFeedback ? (
         <Alert variant={runFeedback.variant} className="small">
           <div className="fw-semibold mb-1">{runFeedback.title}</div>
@@ -146,6 +172,7 @@ export default function AdminDatabaseBackups() {
                   <th>File</th>
                   <th className="text-end">Size</th>
                   <th>Uploaded</th>
+                  <th className="text-end">Download</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,6 +184,24 @@ export default function AdminDatabaseBackups() {
                     <td className="text-end text-nowrap small">{formatBytes(row.size)}</td>
                     <td className="text-nowrap small text-muted">
                       {row.last_modified ? new Date(row.last_modified).toLocaleString() : '—'}
+                    </td>
+                    <td className="text-end text-nowrap">
+                      <Button
+                        type="button"
+                        variant="outline-primary"
+                        size="sm"
+                        disabled={downloadingKey === row.key}
+                        onClick={() => downloadBackup(row.key)}
+                      >
+                        {downloadingKey === row.key ? (
+                          <Spinner animation="border" size="sm" className="align-middle" aria-hidden />
+                        ) : (
+                          <>
+                            <i className="bi bi-download me-1" aria-hidden />
+                            Download
+                          </>
+                        )}
+                      </Button>
                     </td>
                   </tr>
                 ))}
