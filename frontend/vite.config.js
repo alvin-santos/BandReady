@@ -13,17 +13,19 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        // target: 'https://api.band-ready.com',
-        target: 'http://localhost:8000',
+        target: 'https://api.band-ready.com',
+        // target: 'http://localhost:8000',
         changeOrigin: true,
       },
       '/storage': {
-        // target: 'https://api.band-ready.com',
-        target: 'http://localhost:8000',
+        target: 'https://api.band-ready.com',
+        // target: 'http://localhost:8000',
         changeOrigin: true,
       },
-      '/auth': {
-        target: 'http://localhost:8000',
+      // Must not proxy /auth — the SPA serves /auth/google for Google token (#fragment).
+      '/oauth': {
+        target: 'https://api.band-ready.com',
+        // target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },

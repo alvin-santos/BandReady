@@ -52,6 +52,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// OAuth start lives on /oauth/google so the SPA can own /auth/google (token hash landing).
+// /auth/google on the API remains as a legacy alias for the same redirect.
+Route::get('/oauth/google', [GoogleAuthController::class, 'redirect'])
+    ->middleware('throttle:30,1');
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])
     ->middleware('throttle:30,1');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
