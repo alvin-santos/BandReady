@@ -18,7 +18,14 @@ class GoogleAuthController extends Controller
 
     public function callback(): RedirectResponse
     {
+        // SPA origin only — not APP_URL (API). Set FRONTEND_URL in .env (e.g. https://band-ready.com).
         $frontend = rtrim((string) config('app.frontend_url'), '/');
+        if ($frontend === '') {
+            throw new \RuntimeException(
+                'FRONTEND_URL is empty. Set FRONTEND_URL in .env to your SPA base URL. After Google validates at '.
+                rtrim((string) config('app.url'), '/').'/auth/google/callback, users are redirected here with the token.'
+            );
+        }
 
         try {
             $googleUser = Socialite::driver('google')->user();
