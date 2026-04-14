@@ -35,6 +35,7 @@ import AdminRanking from './pages/AdminRanking.jsx';
 import AdminTtsVoices from './pages/AdminTtsVoices.jsx';
 import AdminContactMessages from './pages/AdminContactMessages.jsx';
 import AdminOpenAiQuestionnaire from './pages/AdminOpenAiQuestionnaire.jsx';
+import AdminDatabaseBackups from './pages/AdminDatabaseBackups.jsx';
 
 function Private({ children }) {
   const { user, loading } = useAuth();
@@ -159,6 +160,7 @@ export const router = createBrowserRouter([
           { path: 'downloadables', element: <AdminDownloads /> },
           { path: 'tts-voices', element: <AdminTtsVoices /> },
           { path: 'messages', element: <AdminContactMessages /> },
+          { path: 'database-backups', element: <AdminDatabaseBackups /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

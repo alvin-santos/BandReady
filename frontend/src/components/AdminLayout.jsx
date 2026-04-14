@@ -14,6 +14,7 @@ const links = [
   { to: '/admin/ranking-settings', label: 'Rankings', icon: 'bi-trophy' },
   { to: '/admin/downloadables', label: 'Downloads', icon: 'bi-file-earmark-arrow-down' },
   { to: '/admin/messages', label: 'Messages', icon: 'bi-envelope-open' },
+  { to: '/admin/database-backups', label: 'DB backups', icon: 'bi-cloud-arrow-up' },
 ];
 
 export default function AdminLayout() {

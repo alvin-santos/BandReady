@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Support\CliBinary;
+use App\Support\DatabaseBackupR2;
 use App\Support\SqliteDatabasePath;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -14,7 +15,8 @@ class BandreadyBackupDatabaseCommand extends Command
 {
     protected $signature = 'bandready:backup
                             {--output= : Directory under storage/app (default: backups/bandready-TIMESTAMP)}
-                            {--name= : Optional label included in folder name}';
+                            {--name= : Optional label included in folder name}
+                            {--skip-r2 : Do not zip or upload to R2 / S3-compatible storage}';
 
     protected $description = 'Back up the application database (SQLite file copy or SQL dump for MySQL/MariaDB/PostgreSQL).';
 
@@ -66,6 +68,24 @@ class BandreadyBackupDatabaseCommand extends Command
         }
 
         File::put($baseDir.'/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+
+        if (! $this->option('skip-r2') && DatabaseBackupR2::enabled()) {
+            if (! DatabaseBackupR2::configured()) {
+                $this->comment('Skipping R2 upload (cloud disk is not fully configured).');
+            } else {
+                try {
+                    $key = DatabaseBackupR2::zipAndUpload($baseDir);
+                    $manifest['r2_object_key'] = $key;
+                    $manifest['r2_uploaded_at'] = now()->toIso8601String();
+                    File::put($baseDir.'/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+                    $this->info('Uploaded to remote storage: '.$key);
+                } catch (Throwable $e) {
+                    $this->error('Remote backup upload failed: '.$e->getMessage());
+
+                    return self::FAILURE;
+                }
+            }
+        }
 
         $this->info('Backup written to: '.$baseDir);
         $this->line('Restore with: php artisan bandready:restore "'.str_replace('\\', '/', $baseDir).'"');

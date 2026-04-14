@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminAdController;
 use App\Http\Controllers\Api\Admin\AdminContactMessageController;
+use App\Http\Controllers\Api\Admin\AdminDatabaseBackupController;
 use App\Http\Controllers\Api\Admin\AdminDownloadableController;
 use App\Http\Controllers\Api\Admin\AdminExamController;
 use App\Http\Controllers\Api\Admin\AdminOpenAiQuestionnaireController;
@@ -156,4 +157,8 @@ Route::middleware(['auth:sanctum', 'verified', 'admin'])->prefix('admin')->group
     Route::get('/contact-messages', [AdminContactMessageController::class, 'index']);
     Route::post('/contact-messages/{id}/read', [AdminContactMessageController::class, 'markRead'])->whereNumber('id');
     Route::post('/contact-messages/{id}/unread', [AdminContactMessageController::class, 'markUnread'])->whereNumber('id');
+
+    Route::get('/database-backups', [AdminDatabaseBackupController::class, 'index']);
+    Route::post('/database-backups/run', [AdminDatabaseBackupController::class, 'run'])
+        ->middleware('throttle:5,1');
 });
