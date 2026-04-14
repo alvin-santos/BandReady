@@ -105,10 +105,12 @@
 
 .br-bandie-message {
   font-size: 0.8125rem;
-  line-height: 1.4;
+  line-height: 1.45;
   color: var(--br-text);
   margin: 0;
   padding-right: 0.25rem;
+  max-height: 12.5rem;
+  overflow-y: auto;
 }
 
 .br-bandie-tip-nav {

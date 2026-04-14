@@ -12,6 +12,9 @@ class SiteSetting extends Model
         'rankings_fake_entries',
         'tts_disabled_voice_keys',
         'bandie_tutor_enabled',
+        'bandie_tips_detailed',
+        'bandie_tutor_tips_compact',
+        'bandie_tutor_tips_detailed',
         'celpip_default_questions_per_task',
     ];
 
@@ -23,6 +26,9 @@ class SiteSetting extends Model
             'rankings_fake_entries' => 'array',
             'tts_disabled_voice_keys' => 'array',
             'bandie_tutor_enabled' => 'boolean',
+            'bandie_tips_detailed' => 'boolean',
+            'bandie_tutor_tips_compact' => 'array',
+            'bandie_tutor_tips_detailed' => 'array',
             'celpip_default_questions_per_task' => 'array',
         ];
     }
@@ -36,6 +42,7 @@ class SiteSetting extends Model
                 'rankings_merge_fake' => true,
                 'rankings_fake_entries' => [],
                 'bandie_tutor_enabled' => true,
+                'bandie_tips_detailed' => true,
             ]
         );
     }

@@ -8,6 +8,7 @@ const links = [
   { to: '/admin/tests', label: 'Tests', icon: 'bi-journal-text' },
   { to: '/admin/exam-nav', label: 'CELPIP tasks', icon: 'bi-grid-3x3-gap' },
   { to: '/admin/questions', label: 'Questions', icon: 'bi-patch-question' },
+  { to: '/admin/question-bank', label: 'Question bank', icon: 'bi-collection' },
   { to: '/admin/openai-questionnaire', label: 'AI generate', icon: 'bi-robot' },
   { to: '/admin/tts-voices', label: 'TTS voices', icon: 'bi-mic' },
   { to: '/admin/ads', label: 'Advertisements', icon: 'bi-badge-ad' },

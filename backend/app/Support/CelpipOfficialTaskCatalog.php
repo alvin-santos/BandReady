@@ -135,7 +135,50 @@ class CelpipOfficialTaskCatalog
             $lines[] = json_encode($binding, JSON_UNESCAPED_UNICODE);
         }
 
+        if (isset($applicable['Listening']) && $applicable['Listening'] !== []) {
+            $lines[] = '';
+            $lines[] = '**Listening — CELPIP task genre (mandatory):** Each Listening `multiple_choice` row’s `audio_script` must **sound like** the official task type on that row (`celpip_task_number` / `celpip_task_label`). **Do not** assign metadata for one task while writing audio for another (e.g. never label **News item** but script a customer–agent laptop repair—that belongs under **Problem solving**).';
+            $lines[] = self::formatListeningTaskGenreAppendix($applicable['Listening']);
+        }
+
         return implode("\n", $lines);
+    }
+
+    /**
+     * Tight genre hints for selected Listening tasks (append to model user prompt).
+     *
+     * @param  list<int>  $taskNums
+     */
+    public static function formatListeningTaskGenreAppendix(array $taskNums): string
+    {
+        $nums = [];
+        foreach ($taskNums as $n) {
+            if (is_int($n)) {
+                $nums[$n] = true;
+            } elseif (is_numeric($n)) {
+                $nums[(int) $n] = true;
+            }
+        }
+        $keys = array_keys($nums);
+        sort($keys);
+
+        $guides = [
+            1 => '**Task 1 — Problem solving:** Practical fix: voicemail, service counter, neighbour/work conflict, scheduling mix-up, or troubleshooting. Clear problem → response. **Not** a news anchor monologue.',
+            2 => '**Task 2 — A daily life conversation:** Natural two-person chat (friends, roommates, light work chat). **Not** a formal news report.',
+            3 => '**Task 3 — Information:** Directions, schedules, rules, how-to, or factual briefing (may be monologue or dialogue). Still **not** a packaged TV/radio news story.',
+            4 => '**Task 4 — News item (strict):** Audio must read as **news media**: TV/radio anchor, field reporter, or short digital-news segment on a **public-interest story** (local event, policy change, crime/public safety brief, economy, community issue). Use **journalistic framing** (headline-style open, who/what/when/where, may include one clipped quote). **Do not** use a long **customer–service** or **tech-support** dialogue (returns, warranties, “my laptop…”) as the main clip—that is **Problem solving**, not News. A **one-line** consumer tip inside a broader bulletin is OK only if most of the script stays **reporter/anchor voice**.',
+            5 => '**Task 5 — Discussion:** Two or more people **debating** an issue (opinions, pros/cons). Not a solo newsreader.',
+            6 => '**Task 6 — Viewpoints:** Contrasting positions (interview, panel, or structured exchange). Not generic service desk talk.',
+        ];
+
+        $out = [];
+        foreach ($keys as $n) {
+            if (isset(self::TASKS_BY_SECTION['Listening'][$n], $guides[$n])) {
+                $out[] = '- '.$guides[$n];
+            }
+        }
+
+        return implode("\n", $out);
     }
 
     /**

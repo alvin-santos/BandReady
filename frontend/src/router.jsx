@@ -24,6 +24,7 @@ import AdminExams from './pages/AdminExams.jsx';
 import AdminSections from './pages/AdminSections.jsx';
 import AdminTests from './pages/AdminTests.jsx';
 import AdminQuestions from './pages/AdminQuestions.jsx';
+import AdminQuestionBank from './pages/AdminQuestionBank.jsx';
 import AdminAds from './pages/AdminAds.jsx';
 import AdminStats from './pages/AdminStats.jsx';
 import AdminDownloads from './pages/AdminDownloads.jsx';
@@ -156,6 +157,7 @@ export const router = createBrowserRouter([
           { path: 'tests', element: <AdminTests /> },
           { path: 'exam-nav', element: <AdminExamNav /> },
           { path: 'questions', element: <AdminQuestions /> },
+          { path: 'question-bank', element: <AdminQuestionBank /> },
           { path: 'openai-questionnaire', element: <AdminOpenAiQuestionnaire /> },
           { path: 'ads', element: <AdminAds /> },
           { path: 'stats', element: <AdminStats /> },

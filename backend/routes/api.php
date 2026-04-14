@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\AdminDatabaseBackupController;
 use App\Http\Controllers\Api\Admin\AdminDownloadableController;
 use App\Http\Controllers\Api\Admin\AdminExamController;
 use App\Http\Controllers\Api\Admin\AdminOpenAiQuestionnaireController;
+use App\Http\Controllers\Api\Admin\AdminQuestionBankStatsController;
 use App\Http\Controllers\Api\Admin\AdminQuestionController;
 use App\Http\Controllers\Api\Admin\AdminBandieTutorSettingsController;
 use App\Http\Controllers\Api\Admin\AdminExamNavSettingsController;
@@ -131,6 +132,8 @@ Route::middleware(['auth:sanctum', 'verified', 'admin'])->prefix('admin')->group
     Route::delete('/tests/{id}', [AdminTestController::class, 'destroy'])->whereNumber('id');
 
     Route::post('/openai-questionnaire/run', [AdminOpenAiQuestionnaireController::class, 'run']);
+
+    Route::get('/question-bank-stats', [AdminQuestionBankStatsController::class, 'index']);
 
     Route::get('/questions', [AdminQuestionController::class, 'index']);
     Route::post('/questions/import', [AdminQuestionController::class, 'import']);
