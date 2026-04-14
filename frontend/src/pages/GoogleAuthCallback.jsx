@@ -19,16 +19,22 @@ export default function GoogleAuthCallback() {
     }
     localStorage.setItem('token', token);
     clearGuestSession();
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    // Strip hash only after /me succeeds (or on error). Clearing it immediately breaks React 18
+    // StrictMode’s second effect run, which would see an empty hash and show “Missing token”.
+    const stripHashFromUrl = () => {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    };
     let cancelled = false;
     (async () => {
       try {
         await refresh();
         if (!cancelled) {
+          stripHashFromUrl();
           navigate('/dashboard', { replace: true });
         }
       } catch {
         if (!cancelled) {
+          stripHashFromUrl();
           setError('Could not load your account. Try logging in again.');
         }
       }

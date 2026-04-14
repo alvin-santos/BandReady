@@ -64,6 +64,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Google OAuth callback debug (halt on /auth/google/callback)
+    |--------------------------------------------------------------------------
+    |
+    | When true, the callback returns an HTML page with request/config details
+    | instead of redirecting. Disable in production after troubleshooting.
+    |
+    */
+
+    'google_oauth_debug' => (bool) env('GOOGLE_OAUTH_DEBUG', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
