@@ -21,6 +21,11 @@ return [
     /** Shorter timeout for per-question writing feedback during submit. */
     'writing_timeout' => (int) env('OPENAI_WRITING_TIMEOUT', 90),
 
+    /** Smart Exam Planner (Pro): chat completion timeout and token cap. */
+    'study_plan_timeout' => (int) env('OPENAI_STUDY_PLAN_TIMEOUT', 120),
+
+    'study_plan_max_completion_tokens' => (int) env('OPENAI_STUDY_PLAN_MAX_COMPLETION_TOKENS', 8192),
+
     /** Whisper model for speaking transcription. */
     'whisper_model' => env('OPENAI_WHISPER_MODEL', 'whisper-1'),
 

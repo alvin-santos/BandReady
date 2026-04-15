@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\PublicRankingController;
 use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\SiteTrafficController;
 use App\Http\Controllers\Api\SpeakingTranscriptionController;
+use App\Http\Controllers\Api\StudyPlanController;
 use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TestController;
@@ -103,6 +104,16 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/subscription/simulate-checkout', [SubscriptionController::class, 'simulateCheckout']);
     Route::get('/mistakes/hub', [MistakesHubController::class, 'show']);
     Route::get('/resources/{slug}/download', [DownloadablePublicController::class, 'download'])->where('slug', '[a-z0-9-]+');
+
+    Route::middleware('throttle:study-plan')->group(function () {
+        Route::get('/study-plan', [StudyPlanController::class, 'show']);
+        Route::patch('/study-plan', [StudyPlanController::class, 'update']);
+        Route::delete('/study-plan', [StudyPlanController::class, 'destroy']);
+    });
+    Route::post('/study-plan', [StudyPlanController::class, 'store'])
+        ->middleware(['throttle:study-plan', 'throttle:study-plan-openai']);
+    Route::post('/study-plan/regenerate', [StudyPlanController::class, 'regenerate'])
+        ->middleware(['throttle:study-plan', 'throttle:study-plan-openai']);
 
     Route::get('/user/tts-voice-settings', [UserTtsVoiceSettingsController::class, 'show']);
     Route::put('/user/tts-voice-settings', [UserTtsVoiceSettingsController::class, 'update']);

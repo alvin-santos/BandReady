@@ -33,5 +33,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('speaking-transcribe', function (Request $request) {
             return Limit::perMinute(45)->by((string) ($request->user()?->id ?? $request->ip()));
         });
+
+        RateLimiter::for('study-plan', function (Request $request) {
+            return Limit::perMinute(30)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
+
+        RateLimiter::for('study-plan-openai', function (Request $request) {
+            return Limit::perHour(8)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
     }
 }

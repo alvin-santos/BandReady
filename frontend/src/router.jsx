@@ -29,6 +29,7 @@ import AdminAds from './pages/AdminAds.jsx';
 import AdminStats from './pages/AdminStats.jsx';
 import AdminDownloads from './pages/AdminDownloads.jsx';
 import MistakesHub from './pages/MistakesHub.jsx';
+import StudyPlan from './pages/StudyPlan.jsx';
 import Resources from './pages/Resources.jsx';
 import Subscription from './pages/Subscription.jsx';
 import Rankings from './pages/Rankings.jsx';
@@ -126,6 +127,14 @@ export const router = createBrowserRouter([
         element: (
           <PrivateVerified>
             <Dashboard />
+          </PrivateVerified>
+        ),
+      },
+      {
+        path: 'study-plan',
+        element: (
+          <PrivateVerified>
+            <StudyPlan />
           </PrivateVerified>
         ),
       },

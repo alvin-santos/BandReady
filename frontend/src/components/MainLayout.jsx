@@ -124,6 +124,12 @@ export default function MainLayout() {
                       <i className="bi bi-bullseye" aria-hidden />
                       Mistakes
                     </NavDropdown.Item>
+                    {isSubscribed && (
+                      <NavDropdown.Item as={Link} to="/study-plan" className={navItem}>
+                        <i className="bi bi-calendar-check" aria-hidden />
+                        Study plan
+                      </NavDropdown.Item>
+                    )}
                     {isAdmin && (
                       <>
                         <NavDropdown.Divider />

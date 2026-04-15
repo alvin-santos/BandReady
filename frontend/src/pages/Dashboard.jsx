@@ -90,8 +90,24 @@ export default function Dashboard() {
           {err}
         </p>
       )}
-      <ReadinessCard readiness={data?.readiness} />
-      <Row className="g-4">
+          <ReadinessCard readiness={data?.readiness} />
+          {isSubscribed && (
+            <div className="br-card p-4 mb-4 border border-br-rose border-opacity-25">
+              <h2 className="h5 fw-bold mb-2 d-flex align-items-center gap-2">
+                <i className="bi bi-calendar-check text-br-rose" aria-hidden />
+                Smart Exam Planner
+              </h2>
+              <p className="small text-muted mb-3">
+                Get a personalized day-by-day IELTS or CELPIP study roadmap from Bandie (OpenAI), tailored to your exam date
+                and weak areas.
+              </p>
+              <Button as={Link} to="/study-plan" variant="primary" size="sm" className="d-inline-flex align-items-center gap-2">
+                <i className="bi bi-magic" aria-hidden />
+                Open study plan
+              </Button>
+            </div>
+          )}
+          <Row className="g-4">
         <Col lg={8}>
           {active?.attempt && (
             <div className="br-card p-4 mb-4">
