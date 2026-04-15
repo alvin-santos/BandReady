@@ -4,8 +4,20 @@ let cachedSet = null;
 let cachedAt = 0;
 const TTL_MS = 90_000;
 
+function mergeUniqueKeys(baseSet, extraArr) {
+  const out = new Set(baseSet);
+  if (Array.isArray(extraArr)) {
+    for (const k of extraArr) {
+      if (typeof k === 'string' && k) {
+        out.add(k);
+      }
+    }
+  }
+  return out;
+}
+
 /**
- * Server blocklist of stableVoiceKey strings. Cached briefly to limit requests during an exam.
+ * Site blocklist plus optional signed-in user blocklist (stableVoiceKey strings). Cached briefly for exams.
  * @returns {Promise<Set<string>>}
  */
 export async function getTtsDisabledVoiceKeysSet() {
@@ -18,8 +30,18 @@ export async function getTtsDisabledVoiceKeysSet() {
   }
   try {
     const { data } = await api.get('/tts-voice-settings');
-    const arr = Array.isArray(data.disabled_keys) ? data.disabled_keys : [];
-    cachedSet = new Set(arr);
+    const site = Array.isArray(data.disabled_keys) ? data.disabled_keys : [];
+    let merged = new Set(site);
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const { data: userData } = await api.get('/user/tts-voice-settings');
+        merged = mergeUniqueKeys(merged, userData.user_disabled_keys);
+      } catch {
+        /* guest token, unverified, or network — site list only */
+      }
+    }
+    cachedSet = merged;
     cachedAt = now;
     return cachedSet;
   } catch {

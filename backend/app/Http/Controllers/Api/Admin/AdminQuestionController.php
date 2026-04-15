@@ -28,6 +28,7 @@ class AdminQuestionController extends Controller
             'type' => 'required|string|max:64',
             'question_text' => 'required|string',
             'passage_text' => 'nullable|string',
+            'show_passage_on_test' => 'sometimes|boolean',
             'audio_url' => 'nullable|string|max:2048',
             'audio_script' => 'nullable|string',
             'image_url' => 'nullable|string|max:2048',
@@ -38,6 +39,10 @@ class AdminQuestionController extends Controller
             'celpip_task_number' => 'nullable|integer|min:1|max:99',
             'celpip_task_label' => 'nullable|string|max:191',
         ]);
+
+        if (! array_key_exists('show_passage_on_test', $data)) {
+            $data['show_passage_on_test'] = true;
+        }
 
         $question = Question::query()->create($data);
 
@@ -51,6 +56,7 @@ class AdminQuestionController extends Controller
             'type' => 'sometimes|string|max:64',
             'question_text' => 'sometimes|string',
             'passage_text' => 'nullable|string',
+            'show_passage_on_test' => 'sometimes|boolean',
             'audio_url' => 'nullable|string|max:2048',
             'audio_script' => 'nullable|string',
             'image_url' => 'nullable|string|max:2048',
@@ -104,6 +110,7 @@ class AdminQuestionController extends Controller
             'type',
             'question_text',
             'passage_text',
+            'show_passage_on_test',
             'audio_url',
             'audio_script',
             'image_url',
@@ -141,6 +148,7 @@ class AdminQuestionController extends Controller
                 'type' => 'required|string|max:64',
                 'question_text' => 'required|string',
                 'passage_text' => 'nullable|string',
+                'show_passage_on_test' => 'sometimes|boolean',
                 'audio_url' => 'nullable|string|max:2048',
                 'audio_script' => 'nullable|string',
                 'image_url' => 'nullable|string|max:2048',

@@ -13,6 +13,7 @@ class Question extends Model
         'type',
         'question_text',
         'passage_text',
+        'show_passage_on_test',
         'audio_url',
         'audio_script',
         'image_url',
@@ -29,6 +30,7 @@ class Question extends Model
         return [
             'options_json' => 'array',
             'celpip_task_number' => 'integer',
+            'show_passage_on_test' => 'boolean',
         ];
     }
 

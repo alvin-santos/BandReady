@@ -24,6 +24,7 @@ const defaultForm = {
   type: 'multiple_choice',
   question_text: '',
   passage_text: '',
+  show_passage_on_test: true,
   audio_url: '',
   audio_script: '',
   image_url: '',
@@ -145,6 +146,7 @@ export default function AdminQuestions() {
       type: q.type,
       question_text: q.question_text,
       passage_text: q.passage_text ?? '',
+      show_passage_on_test: q.show_passage_on_test !== false,
       audio_url: q.audio_url ?? '',
       audio_script: q.audio_script ?? '',
       image_url: q.image_url ?? '',
@@ -206,6 +208,7 @@ export default function AdminQuestions() {
       type: form.type,
       question_text: form.question_text,
       passage_text: form.passage_text || null,
+      show_passage_on_test: Boolean(form.show_passage_on_test),
       audio_url: form.audio_url || null,
       audio_script: form.audio_script?.trim() ? form.audio_script : null,
       image_url: form.image_url?.trim() || null,
@@ -219,6 +222,7 @@ export default function AdminQuestions() {
         type: payload.type,
         question_text: payload.question_text,
         passage_text: payload.passage_text,
+        show_passage_on_test: payload.show_passage_on_test,
         audio_url: payload.audio_url,
         audio_script: payload.audio_script,
         image_url: payload.image_url,
@@ -526,6 +530,18 @@ export default function AdminQuestions() {
                 value={form.passage_text}
                 onChange={(e) => setForm((f) => ({ ...f, passage_text: e.target.value }))}
               />
+              <Form.Check
+                className="mt-2"
+                type="checkbox"
+                id="admin-q-show-passage"
+                label="Show passage on the practice test page"
+                checked={form.show_passage_on_test}
+                onChange={(e) => setForm((f) => ({ ...f, show_passage_on_test: e.target.checked }))}
+              />
+              <Form.Text className="text-muted">
+                When unchecked, passage text is still saved (e.g. for listening instructions) but the large passage block
+                is hidden during the exam.
+              </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Audio URL (optional)</Form.Label>

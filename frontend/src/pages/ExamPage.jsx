@@ -21,6 +21,7 @@ function forwardOnlyInitialIndex(attempt, questionCount) {
 }
 
 import ExamLayout from '../components/ExamLayout.jsx';
+import ExamTtsVoiceRailNote from '../components/ExamTtsVoiceRailNote.jsx';
 import ListeningTtsPlayer from '../components/ListeningTtsPlayer.jsx';
 import QuestionCard from '../components/QuestionCard.jsx';
 import AdSlot from '../components/AdSlot.jsx';
@@ -47,7 +48,7 @@ const emptyExamRailAds = {
 
 export default function ExamPage() {
   const { setTutorSection } = useBandieTutor();
-  const { isAdmin, isSubscribed, loading: authLoading } = useAuth();
+  const { isAdmin, isSubscribed, loading: authLoading, user } = useAuth();
   const { attemptId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -476,7 +477,12 @@ export default function ExamPage() {
           isSubscribed && !isAdmin ? null : <AdSlot location="exam_rail_left" ad={examRailAds.exam_rail_left} />
         }
         rightRailExtra={
-          isSubscribed && !isAdmin ? null : <AdSlot location="exam_rail_right" ad={examRailAds.exam_rail_right} />
+          <>
+            {isListeningSection ? <ExamTtsVoiceRailNote user={user} /> : null}
+            {isSubscribed && !isAdmin ? null : (
+              <AdSlot location="exam_rail_right" ad={examRailAds.exam_rail_right} />
+            )}
+          </>
         }
         questionNavQuestions={questions}
       >
@@ -563,7 +569,10 @@ export default function ExamPage() {
             </div>
           </div>
         )}
-        {q.passage_text && !ttsListening && !isSpeakingPictureTaskQuestion(q) && (
+        {q.passage_text &&
+          (q.show_passage_on_test ?? true) &&
+          !ttsListening &&
+          !isSpeakingPictureTaskQuestion(q) && (
           <div className="br-passage mb-4">{q.passage_text}</div>
         )}
         {listeningGated && !listenDone && (

@@ -103,6 +103,10 @@ export default function MainLayout() {
                     Profile
                     {isSubscribed && <ProBadge variant="nav" className="ms-1" />}
                   </Nav.Link>
+                  <Nav.Link as={Link} to="/settings/tts-voices" className={navItem}>
+                    <i className="bi bi-mic" aria-hidden />
+                    TTS voices
+                  </Nav.Link>
                   <NavDropdown
                     title={
                       <span className="d-inline-flex align-items-center gap-2">

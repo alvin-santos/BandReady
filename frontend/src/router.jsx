@@ -34,6 +34,7 @@ import Subscription from './pages/Subscription.jsx';
 import Rankings from './pages/Rankings.jsx';
 import AdminRanking from './pages/AdminRanking.jsx';
 import AdminTtsVoices from './pages/AdminTtsVoices.jsx';
+import TtsVoicesSettingsPage from './pages/TtsVoicesSettingsPage.jsx';
 import AdminContactMessages from './pages/AdminContactMessages.jsx';
 import AdminOpenAiQuestionnaire from './pages/AdminOpenAiQuestionnaire.jsx';
 import AdminOpenAiQuestionnairePrompts from './pages/AdminOpenAiQuestionnairePrompts.jsx';
@@ -141,6 +142,14 @@ export const router = createBrowserRouter([
         element: (
           <PrivateVerified>
             <Profile />
+          </PrivateVerified>
+        ),
+      },
+      {
+        path: 'settings/tts-voices',
+        element: (
+          <PrivateVerified>
+            <TtsVoicesSettingsPage variant="user" />
           </PrivateVerified>
         ),
       },

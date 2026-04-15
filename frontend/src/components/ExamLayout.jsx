@@ -131,6 +131,7 @@ export default function ExamLayout({
                 minSelectableIndex={forwardOnly ? minSelectableIndex : 0}
                 selectionDisabled={navigationLocked}
                 questions={questionNavQuestions}
+                sectionName={sectionName}
               />
             </div>
             {leftRailExtra ? <div className="br-exam-rail-ad-stack">{leftRailExtra}</div> : null}

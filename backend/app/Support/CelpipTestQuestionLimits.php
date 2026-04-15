@@ -11,6 +11,37 @@ use Illuminate\Support\Collection;
 final class CelpipTestQuestionLimits
 {
     /**
+     * Task bucket for per-task caps and nav: prefer {@see Question::$celpip_task_number}; if missing, match
+     * {@see Question::$celpip_task_label} to an official CELPIP label for that section (case-insensitive).
+     *
+     * @return string numeric task id or `_ungrouped`
+     */
+    public static function effectiveCelpipTaskGroupKey(Question $q, ?string $sectionName): string
+    {
+        if ($q->celpip_task_number !== null && $q->celpip_task_number !== '') {
+            $n = (int) $q->celpip_task_number;
+            if ($n >= 1) {
+                return (string) $n;
+            }
+        }
+        $sectionName = trim((string) $sectionName);
+        if ($sectionName === '' || ! isset(CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName])) {
+            return '_ungrouped';
+        }
+        $lab = is_string($q->celpip_task_label) ? trim($q->celpip_task_label) : '';
+        if ($lab === '') {
+            return '_ungrouped';
+        }
+        foreach (CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName] as $num => $officialLabel) {
+            if (strcasecmp($lab, $officialLabel) === 0) {
+                return (string) (int) $num;
+            }
+        }
+
+        return '_ungrouped';
+    }
+
+    /**
      * @param  array<mixed, mixed>|null  $capsRaw  e.g. ["1" => 3, "2" => 0] — task number => max questions (0 = exclude)
      * @return array<string, int> normalized map task id string => max count
      */
@@ -82,20 +113,17 @@ final class CelpipTestQuestionLimits
     /**
      * @param  Collection<int, Question>  $questionsOrdered
      * @param  array<mixed, mixed>|null  $capsRaw
+     * @param  string|null  $sectionName  e.g. {@see Test::$section} name for label→task matching when task number is absent
      * @return Collection<int, Question>
      */
-    public static function applyPerTaskCaps(Collection $questionsOrdered, ?array $capsRaw): Collection
+    public static function applyPerTaskCaps(Collection $questionsOrdered, ?array $capsRaw, ?string $sectionName = null): Collection
     {
         $caps = self::normalizeCaps($capsRaw);
         if ($caps === []) {
             return $questionsOrdered->values();
         }
 
-        $grouped = $questionsOrdered->groupBy(function (Question $q) {
-            return $q->celpip_task_number !== null
-                ? (string) (int) $q->celpip_task_number
-                : '_ungrouped';
-        });
+        $grouped = $questionsOrdered->groupBy(fn (Question $q) => self::effectiveCelpipTaskGroupKey($q, $sectionName));
 
         $taskKeys = $grouped->keys()->sort(function ($a, $b) {
             if ($a === '_ungrouped') {

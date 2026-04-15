@@ -4,6 +4,23 @@ import { spokenPlainTextFromScript } from '../utils/ttsDialogue.js';
 import { speakDialogueScript } from '../utils/ttsSpeak.js';
 import { getTtsDisabledVoiceKeysSet } from '../utils/ttsVoiceSettingsCache.js';
 
+const WAVE_BAR_COUNT = 26;
+
+/** Decorative equalizer-style bars (browser TTS has no waveform samples). */
+function ListeningTtsWaveform({ active }) {
+  return (
+    <div
+      className={`br-listen-tts-wave ${active ? 'br-listen-tts-wave--active' : ''}`}
+      aria-hidden
+      title={active ? 'Playing' : 'Ready'}
+    >
+      {Array.from({ length: WAVE_BAR_COUNT }, (_, i) => (
+        <span key={i} className="br-listen-tts-wave__bar" style={{ '--br-wave-i': i }} />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Reads listening `audio_script` with the browser Speech Synthesis API. The script is not shown on screen.
  *
@@ -129,32 +146,34 @@ export default function ListeningTtsPlayer({
 
   return (
     <div className="mb-4">
-      {instruction ? (
+      {instruction && (
         <div className="small text-muted mb-2 d-flex align-items-center gap-2">
           <i className="bi bi-info-circle" aria-hidden />
           <span>{instruction}</span>
         </div>
-      ) : (
-        <div className="small text-muted mb-2 d-flex align-items-center gap-2">
-          <i className="bi bi-volume-up" aria-hidden />
-          <span>
-            Listen using your device speaker (text is not shown).
-          </span>
-        </div>
       )}
-      <div className="d-flex flex-wrap gap-3 align-items-center">
-        <Button
-          type="button"
-          variant="primary"
-          className={`br-listen-tts-play ${playing ? 'br-listen-tts-play--playing' : 'br-listen-tts-play--idle'}`}
-          onClick={playing ? stop : speak}
-          aria-label={playing ? 'Stop playback' : 'Play listening clip'}
-        >
-          <span className="br-listen-tts-play__icon-wrap" aria-hidden>
-            <i className={playing ? 'bi bi-stop-fill br-listen-tts-play__glyph' : 'bi bi-play-fill br-listen-tts-play__glyph'} />
-          </span>
-          <span className="br-listen-tts-play__label">{playing ? 'Stop' : 'Play clip'}</span>
-        </Button>
+      <div className="br-listen-tts-shell">
+        <div className="br-listen-tts-shell__track">
+          <Button
+            type="button"
+            variant="primary"
+            className={`br-listen-tts-play ${playing ? 'br-listen-tts-play--playing' : 'br-listen-tts-play--idle'}`}
+            onClick={playing ? stop : speak}
+            aria-label={playing ? 'Stop playback' : 'Play listening clip'}
+          >
+            <span className="br-listen-tts-play__icon-wrap" aria-hidden>
+              <i
+                className={playing ? 'bi bi-stop-fill br-listen-tts-play__glyph' : 'bi bi-play-fill br-listen-tts-play__glyph'}
+              />
+            </span>
+            <span className="br-listen-tts-play__label">{playing ? 'Stop' : 'Play'}</span>
+          </Button>
+          <ListeningTtsWaveform active={playing} />
+        </div>
+        <div className="br-listen-tts-shell__meta small text-muted">
+          <span className="br-listen-tts-shell__meta-dot" aria-hidden />
+          {playing ? 'Playing — device speech' : 'Ready — tap play to listen'}
+        </div>
       </div>
       <p className="small text-muted mt-3 mb-0 border-start border-3 ps-3 border-secondary border-opacity-25">
         <strong className="text-muted">Note:</strong> This clip is read by your device using computer speech (not a studio

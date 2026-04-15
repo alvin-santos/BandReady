@@ -100,6 +100,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'subscription_expires_at' => 'datetime',
             'progress_reminder_sent_at' => 'datetime',
             'speaking_ai_suspended_at' => 'datetime',
+            'tts_disabled_voice_keys' => 'array',
         ];
     }
 }

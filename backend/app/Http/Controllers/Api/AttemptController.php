@@ -87,7 +87,7 @@ class AttemptController extends Controller
                 $test->section?->name,
                 $siteDefaults
             );
-            $pool = CelpipTestQuestionLimits::applyPerTaskCaps($canonical, $effectiveCaps);
+            $pool = CelpipTestQuestionLimits::applyPerTaskCaps($canonical, $effectiveCaps, $test->section?->name);
             if ($pool->isEmpty()) {
                 return response()->json([
                     'message' => 'This test has no questions to show. Adjust per-task limits or add questions.',
@@ -98,7 +98,7 @@ class AttemptController extends Controller
             $cap = $test->questions_to_show;
             if ($cap !== null && $cap > 0 && count($orderIds) > $cap) {
                 $orderIds = $this->pickQuestionIdsRespectingImageMinimum($pool, $cap);
-            } elseif (! $this->questionPoolUsesCelpipTasks($pool)) {
+            } elseif (! $this->questionPoolUsesCelpipTasks($pool, $test->section?->name)) {
                 // Preserve bank `order` / per-task merge order for CELPIP-style tests; shuffle only generic banks.
                 shuffle($orderIds);
             }
@@ -505,9 +505,11 @@ class AttemptController extends Controller
      *
      * @param  Collection<int, Question>  $pool
      */
-    private function questionPoolUsesCelpipTasks(Collection $pool): bool
+    private function questionPoolUsesCelpipTasks(Collection $pool, ?string $sectionName): bool
     {
-        return $pool->contains(fn (Question $q) => $q->celpip_task_number !== null && (int) $q->celpip_task_number >= 1);
+        return $pool->contains(
+            fn (Question $q) => CelpipTestQuestionLimits::effectiveCelpipTaskGroupKey($q, $sectionName) !== '_ungrouped'
+        );
     }
 
     private function pickQuestionIdsRespectingImageMinimum(Collection $questionsOrdered, int $cap): array

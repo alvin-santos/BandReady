@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TestController;
 use App\Http\Controllers\Api\TtsVoiceSettingsController;
+use App\Http\Controllers\Api\UserTtsVoiceSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/exams', [ExamController::class, 'index']);
@@ -102,6 +103,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/subscription/simulate-checkout', [SubscriptionController::class, 'simulateCheckout']);
     Route::get('/mistakes/hub', [MistakesHubController::class, 'show']);
     Route::get('/resources/{slug}/download', [DownloadablePublicController::class, 'download'])->where('slug', '[a-z0-9-]+');
+
+    Route::get('/user/tts-voice-settings', [UserTtsVoiceSettingsController::class, 'show']);
+    Route::put('/user/tts-voice-settings', [UserTtsVoiceSettingsController::class, 'update']);
 
     Route::post('/forum/categories/{id}/threads', [ForumController::class, 'storeThread'])
         ->whereNumber('id')

@@ -11,7 +11,7 @@ const links = [
   { to: '/admin/question-bank', label: 'Question bank', icon: 'bi-collection' },
   { to: '/admin/openai-questionnaire', label: 'AI generate', icon: 'bi-robot' },
   { to: '/admin/openai-questionnaire/prompts', label: 'AI prompt library', icon: 'bi-journal-text' },
-  { to: '/admin/tts-voices', label: 'TTS voices', icon: 'bi-mic' },
+  { to: '/admin/tts-voices', label: 'TTS voices (site)', icon: 'bi-mic' },
   { to: '/admin/ads', label: 'Advertisements', icon: 'bi-badge-ad' },
   { to: '/admin/stats', label: 'Analytics', icon: 'bi-graph-up-arrow' },
   { to: '/admin/ranking-settings', label: 'Rankings', icon: 'bi-trophy' },
