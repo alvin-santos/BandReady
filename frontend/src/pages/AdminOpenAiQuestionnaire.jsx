@@ -53,6 +53,9 @@ function buildArtisanPreview(body) {
   if (body.with_speaking_images) {
     parts.push('--with-speaking-images');
   }
+  if (body.omit_passage_text) {
+    parts.push('--omit-passage-text');
+  }
   return parts.join(' ');
 }
 
@@ -70,6 +73,7 @@ function initialFormState() {
     dryRun: false,
     noQuestionPreview: false,
     withSpeakingImages: false,
+    omitPassageText: false,
     fileJson: '',
   };
 }
@@ -88,6 +92,7 @@ export default function AdminOpenAiQuestionnaire() {
     dryRun,
     noQuestionPreview,
     withSpeakingImages,
+    omitPassageText,
     fileJson,
   } = form;
 
@@ -116,6 +121,7 @@ export default function AdminOpenAiQuestionnaire() {
       no_question_preview: noQuestionPreview || undefined,
       with_speaking_images:
         sectionScope === 'Speaking' && withSpeakingImages ? true : undefined,
+      omit_passage_text: omitPassageText ? true : undefined,
       exam_title: examTitle.trim() || undefined,
       test_title: testTitle.trim() || undefined,
       file_json: fileJson.trim() || undefined,
@@ -148,6 +154,7 @@ export default function AdminOpenAiQuestionnaire() {
     fileJson,
     model,
     noQuestionPreview,
+    omitPassageText,
     questionsPerTest,
     celpipTaskId,
     sectionScope,
@@ -438,6 +445,21 @@ export default function AdminOpenAiQuestionnaire() {
                 value={extraPrompt}
                 onChange={(e) => setField('extraPrompt', e.target.value)}
               />
+              <Form.Check
+                id="openai-omit-passage"
+                className="small mt-2"
+                type="checkbox"
+                label="Omit optional passage_text (JSON null)"
+                checked={omitPassageText}
+                onChange={(e) => setField('omitPassageText', e.target.checked)}
+              />
+              <Form.Text className="text-muted">
+                Sends the same rule as <code className="text-body">--omit-passage-text</code>: for types like{' '}
+                <strong className="text-body">speaking_prompt</strong> and <strong className="text-body">essay</strong>, put
+                instructions in <code className="text-body">question_text</code> only—do not duplicate a long block in{' '}
+                <code className="text-body">passage_text</code>. Listening and Reading MCQ still follow mandatory passage
+                rules.
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">

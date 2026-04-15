@@ -490,7 +490,7 @@ PROMPT;
     /**
      * @param  array{exam: Exam, test: Test}|null  $existingTarget
      */
-    public function generatePayload(string $userInstructions, ?string $model = null, ?OutputInterface $output = null, ?int $questionsPerTest = null, ?array $onlySections = null, ?array $existingTarget = null, bool $withSpeakingImages = false, ?array $celpipSectionTasks = null): array
+    public function generatePayload(string $userInstructions, ?string $model = null, ?OutputInterface $output = null, ?int $questionsPerTest = null, ?array $onlySections = null, ?array $existingTarget = null, bool $withSpeakingImages = false, ?array $celpipSectionTasks = null, bool $omitOptionalPassageText = false): array
     {
         $key = config('openai.api_key');
         if (! is_string($key) || $key === '') {
@@ -615,6 +615,15 @@ CELPIP_META;
 
         if (trim($userInstructions) !== '') {
             $user .= "\n\n**BandReady defaults (apply unless your instructions explicitly override):** Each test's `difficulty` must be **medium** or **hard** only (use **hard** for roughly two-thirds of tests). Objective questions must be **idea-based**: no **how many** / **how much** stems and no keyed answers that are **primarily numerals**; see the system prompt.";
+        }
+
+        if ($omitOptionalPassageText) {
+            $user .= <<<'OMIT_PASS'
+
+
+**passage_text (this run — omit when optional):** For every question where `passage_text` is **optional** in BandReady—especially **`speaking_prompt`** and **`essay`**—set `passage_text` to JSON **null** (not `""`). Put the full learner briefing and task wording in **`question_text`** only; **do not** duplicate it as a second “passage” block and **do not** add filler context in `passage_text` for those types. **Exceptions (unchanged — follow the system prompt):** Listening `multiple_choice` rows **must** keep the short hint-free scenario `passage_text` (~50–180 characters) where required; Reading `multiple_choice` without audio **must** keep the full reading in `passage_text`; any other type that **requires** non-null `passage_text` for a valid import stays as required.
+OMIT_PASS;
+            $output?->writeln('<comment>Omit optional passage_text:</comment> ON (e.g. speaking_prompt / essay → passage_text null unless mandatory).');
         }
 
         $output?->writeln('<comment>Model:</comment> '.$model);
@@ -1715,7 +1724,8 @@ MSG;
      *   dry_run?: bool,
      *   no_question_preview?: bool,
      *   with_speaking_images?: bool,
-     *   celpip_section_tasks?: array<string, list<int>>|null
+     *   celpip_section_tasks?: array<string, list<int>>|null,
+     *   omit_passage_text?: bool
      * } $opts
      * @return array{code: int, payload?: array|null}
      */
@@ -1799,6 +1809,7 @@ MSG;
 
         $dryRun = (bool) ($opts['dry_run'] ?? false);
         $noQuestionPreview = (bool) ($opts['no_question_preview'] ?? false);
+        $omitOptionalPassageText = (bool) ($opts['omit_passage_text'] ?? false);
 
         /** @var array<string, list<int>>|null $celpipNormalized */
         $celpipNormalized = null;
@@ -1848,7 +1859,10 @@ MSG;
                 if ($extra !== '') {
                     $output->writeln('Extra prompt: '.$extra);
                 }
-                $payload = $this->generatePayload($extra, $model, $output, $questionsPerTestInt, $onlySectionsForOpenAi, $existingTarget, $withSpeakingImages, $celpipNormalized);
+                if ($omitOptionalPassageText) {
+                    $output->writeln('Omit optional passage_text: ON (appended to OpenAI user message).');
+                }
+                $payload = $this->generatePayload($extra, $model, $output, $questionsPerTestInt, $onlySectionsForOpenAi, $existingTarget, $withSpeakingImages, $celpipNormalized, $omitOptionalPassageText);
             }
 
             $output->writeln('Validating payload structure…');

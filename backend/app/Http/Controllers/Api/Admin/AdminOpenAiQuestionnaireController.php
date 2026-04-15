@@ -23,6 +23,7 @@ class AdminOpenAiQuestionnaireController extends Controller
             'dry_run' => 'sometimes|boolean',
             'no_question_preview' => 'sometimes|boolean',
             'with_speaking_images' => 'sometimes|boolean',
+            'omit_passage_text' => 'sometimes|boolean',
             'file_json' => 'sometimes|string|nullable|max:5242880',
             'celpip_section_tasks' => 'sometimes|nullable|array',
         ]);
@@ -61,6 +62,7 @@ class AdminOpenAiQuestionnaireController extends Controller
             'dry_run' => (bool) ($validated['dry_run'] ?? false),
             'no_question_preview' => (bool) ($validated['no_question_preview'] ?? false),
             'with_speaking_images' => (bool) ($validated['with_speaking_images'] ?? false),
+            'omit_passage_text' => (bool) ($validated['omit_passage_text'] ?? false),
             'celpip_section_tasks' => is_array($celpipTasks) ? $celpipTasks : null,
         ]);
 
