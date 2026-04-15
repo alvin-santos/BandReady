@@ -7,6 +7,7 @@ export default function BandieTutor() {
     hideChrome,
     dismissed,
     tempHidden,
+    examAutoMinimized,
     bubbleOpen,
     message,
     toggleBubble,
@@ -14,20 +15,20 @@ export default function BandieTutor() {
     hideBandie,
     nextTip,
     tempHideBandie,
-    restoreBandie,
+    showBandieFromChip,
   } = useBandieTutor();
 
   if (hideChrome || dismissed) {
     return null;
   }
 
-  if (tempHidden) {
+  if (tempHidden || examAutoMinimized) {
     return (
       <div className="br-bandie-root" aria-live="polite">
         <button
           type="button"
           className="br-bandie-restore-chip"
-          onClick={restoreBandie}
+          onClick={showBandieFromChip}
           aria-label="Show Bandie again"
           title="Show Bandie"
         >

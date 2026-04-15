@@ -166,6 +166,7 @@ export function BandieTutorProvider({ children }) {
   const tipControlRef = useRef({ stop: () => {}, start: () => {} });
 
   const hideChrome = location.pathname.startsWith('/admin') || !siteBandieEnabled;
+  const isExamRunRoute = location.pathname.startsWith('/exam/run');
 
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(LS_DISMISS) === '1');
   const [section, setSectionState] = useState(DEFAULT_SECTION);
@@ -174,12 +175,15 @@ export function BandieTutorProvider({ children }) {
   const [tipIndex, setTipIndex] = useState(0);
   const [rotationOn, setRotationOn] = useState(false);
   const [tempHidden, setTempHidden] = useState(false);
+  /** On /exam/run/* Bandie starts as the small chip until the learner taps Show Bandie. */
+  const [examAutoMinimized, setExamAutoMinimized] = useState(false);
 
   const rotateTimerRef = useRef(null);
   const introTimerRef = useRef(null);
   const sectionRef = useRef(section);
   const messageRef = useRef(message);
   const bubbleOpenBeforeTempHideRef = useRef(true);
+  const prevExamRunRouteRef = useRef(false);
 
   useEffect(() => {
     sectionRef.current = section;
@@ -188,6 +192,18 @@ export function BandieTutorProvider({ children }) {
   useEffect(() => {
     messageRef.current = message;
   }, [message]);
+
+  useEffect(() => {
+    const enteredExam = isExamRunRoute && !prevExamRunRouteRef.current;
+    if (enteredExam) {
+      setExamAutoMinimized(true);
+      setBubbleOpen(false);
+    }
+    if (!isExamRunRoute) {
+      setExamAutoMinimized(false);
+    }
+    prevExamRunRouteRef.current = isExamRunRoute;
+  }, [isExamRunRoute]);
 
   const stopBandieTips = useCallback(() => {
     if (rotateTimerRef.current) {
@@ -237,7 +253,7 @@ export function BandieTutorProvider({ children }) {
   );
 
   useEffect(() => {
-    if (hideChrome || dismissed || tempHidden || !bubbleOpen) {
+    if (hideChrome || dismissed || tempHidden || examAutoMinimized || !bubbleOpen) {
       clearIntroTimer();
       stopBandieTips();
       return;
@@ -262,7 +278,7 @@ export function BandieTutorProvider({ children }) {
     return () => {
       stopBandieTips();
     };
-  }, [hideChrome, dismissed, tempHidden, bubbleOpen, section, clearIntroTimer, stopBandieTips, applySectionTips]);
+  }, [hideChrome, dismissed, tempHidden, examAutoMinimized, bubbleOpen, section, clearIntroTimer, stopBandieTips, applySectionTips]);
 
   const setTutorSection = useCallback((raw) => {
     setSectionState(normalizeSection(raw));
@@ -281,8 +297,19 @@ export function BandieTutorProvider({ children }) {
     setBubbleOpen(bubbleOpenBeforeTempHideRef.current);
   }, []);
 
+  const showBandieFromChip = useCallback(() => {
+    setExamAutoMinimized(false);
+    if (tempHidden) {
+      restoreBandie();
+    } else {
+      setBubbleOpen(true);
+      bubbleOpenBeforeTempHideRef.current = true;
+    }
+  }, [tempHidden, restoreBandie]);
+
   const showBandie = useCallback(
     (custom) => {
+      setExamAutoMinimized(false);
       setTempHidden(false);
       setDismissed(false);
       localStorage.removeItem(LS_DISMISS);
@@ -407,11 +434,13 @@ export function BandieTutorProvider({ children }) {
       tempHidden,
       tempHideBandie,
       restoreBandie,
+      showBandieFromChip,
       dismissed,
       bubbleOpen,
       message,
       rotationOn,
       hideChrome,
+      examAutoMinimized,
     }),
     [
       section,
@@ -426,11 +455,13 @@ export function BandieTutorProvider({ children }) {
       tempHidden,
       tempHideBandie,
       restoreBandie,
+      showBandieFromChip,
       dismissed,
       bubbleOpen,
       message,
       rotationOn,
       hideChrome,
+      examAutoMinimized,
     ]
   );
 

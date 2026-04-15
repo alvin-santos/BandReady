@@ -180,6 +180,10 @@ class OpenAiImageGenerationService
             if ($key === '' || str_contains($key, '..')) {
                 continue;
             }
+            $bucket = trim((string) config('filesystems.disks.r2.bucket'), '/');
+            if ($bucket !== '' && str_starts_with($key, $bucket.'/')) {
+                $key = substr($key, strlen($bucket) + 1);
+            }
             foreach ($this->speakingImageKeyPrefixCandidates() as $ap) {
                 if ($ap !== '' && str_starts_with($key, $ap.'/')) {
                     return $key;
@@ -191,7 +195,7 @@ class OpenAiImageGenerationService
     }
 
     /**
-     * Public browser URL for an R2 object (includes /{bucket}/ when url_include_bucket is true).
+     * Public browser URL for an R2 object (see r2PublicUrlPrefixesLongestFirst for bucket path rules).
      */
     private function buildR2PublicUrl(string $objectKey): string
     {
@@ -210,7 +214,8 @@ class OpenAiImageGenerationService
 
     /**
      * URL prefixes to strip when resolving an object key, or the base to use when building a URL.
-     * Longer prefix first so https://pub….r2.dev/{bucket}/… is matched before https://pub….r2.dev/.
+     * Longer prefix first when both apply (custom domain / S3-style public URLs may include /{bucket}/).
+     * Cloudflare R2 public pub-*.r2.dev URLs use the object key directly under the host (no extra /{bucket}/ segment).
      *
      * @return list<string>
      */
@@ -220,9 +225,12 @@ class OpenAiImageGenerationService
         if ($base === '') {
             return [];
         }
+        $host = parse_url($base, PHP_URL_HOST);
+        $isPubR2Dev = is_string($host) && str_ends_with(strtolower($host), '.r2.dev');
+
         $includeBucket = filter_var(config('filesystems.disks.r2.url_include_bucket', true), FILTER_VALIDATE_BOOLEAN);
         $bucket = trim((string) config('filesystems.disks.r2.bucket'), '/');
-        $withBucket = $includeBucket && $bucket !== '' && ! str_ends_with($base, '/'.$bucket)
+        $withBucket = ! $isPubR2Dev && $includeBucket && $bucket !== '' && ! str_ends_with($base, '/'.$bucket)
             ? $base.'/'.$bucket
             : null;
 

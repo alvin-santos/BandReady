@@ -87,9 +87,9 @@ return [
                 'bucket' => env('R2_BUCKET', env('AWS_BUCKET')),
                 'url' => env('R2_URL', env('AWS_URL')),
                 /*
-                | Cloudflare R2 public *.r2.dev URLs are typically https://pub-….r2.dev/{bucket}/{objectKey}.
-                | Laravel's S3 driver builds https://pub-….r2.dev/{objectKey} unless the bucket is appended here.
-                | Set R2_URL_INCLUDE_BUCKET=false if R2_URL already ends with /{bucket} or you use a custom domain at bucket root.
+                | Cloudflare R2 public pub-*.r2.dev URLs are https://pub-….r2.dev/{objectKey} (bucket is not in the path).
+                | Custom domains or some S3-style public bases may need https://…/{bucket}/{objectKey}; set R2_URL_INCLUDE_BUCKET=true
+                | and a base R2_URL without a trailing /{bucket} when that applies. OpenAiImageGenerationService skips /{bucket} for *.r2.dev.
                 */
                 'url_include_bucket' => filter_var(env('R2_URL_INCLUDE_BUCKET', true), FILTER_VALIDATE_BOOLEAN),
                 'endpoint' => $endpoint,
