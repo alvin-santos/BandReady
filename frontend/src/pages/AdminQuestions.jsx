@@ -149,7 +149,7 @@ export default function AdminQuestions() {
       audio_script: q.audio_script ?? '',
       image_url: q.image_url ?? '',
       speaking_ielts_mode: ieltsAi ? 'ai_conversation' : 'none',
-      speaking_celpip_mode: mode === 'scenario' || mode === 'describe' ? mode : 'none',
+      speaking_celpip_mode: mode === 'scenario' || mode === 'describe' || mode === 'predict' ? mode : 'none',
       speaking_image_prompt: sp?.image_generation_prompt ?? '',
       options_json: q.options_json ? JSON.stringify(q.options_json, null, 2) : '',
       correct_answer: String(q.correct_answer ?? ''),
@@ -176,10 +176,10 @@ export default function AdminQuestions() {
       const mode = form.speaking_celpip_mode;
       const speaking = {
         ...prevSpeaking,
-        ...(mode === 'scenario' || mode === 'describe' ? { celpip_mode: mode } : {}),
+        ...(mode === 'scenario' || mode === 'describe' || mode === 'predict' ? { celpip_mode: mode } : {}),
         ...(form.speaking_image_prompt?.trim() ? { image_generation_prompt: form.speaking_image_prompt.trim() } : {}),
       };
-      if (!(mode === 'scenario' || mode === 'describe')) {
+      if (!(mode === 'scenario' || mode === 'describe' || mode === 'predict')) {
         delete speaking.celpip_mode;
       }
       if (!form.speaking_image_prompt?.trim()) {
@@ -623,8 +623,9 @@ export default function AdminQuestions() {
                     value={form.speaking_celpip_mode}
                     onChange={(e) => setForm((f) => ({ ...f, speaking_celpip_mode: e.target.value }))}
                   >
-                    <option value="describe">Describe what you see (neutral)</option>
-                    <option value="scenario">Scenario (e.g. describe to a friend on the phone)</option>
+                    <option value="describe">Describe what you see (neutral) — CELPIP Task 3</option>
+                    <option value="scenario">Scenario (e.g. describe to a friend on the phone) — Task 3</option>
+                    <option value="predict">Making predictions from the image — CELPIP Task 4</option>
                     <option value="none">No CELPIP-style hint (generic speaking)</option>
                   </Form.Select>
                 </Form.Group>

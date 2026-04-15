@@ -239,6 +239,8 @@ SYS;
                 $lines[] = 'Task style: scenario (e.g. describing to someone on the phone)—reward natural, coherent English that fits the role; do not require exhaustive object lists.';
             } elseif ($mode === 'describe') {
                 $lines[] = 'Task style: describe the scene—reward clear English and on-topic description, not a checklist of every item in the picture.';
+            } elseif ($mode === 'predict') {
+                $lines[] = 'Task style: making predictions (CELPIP-style)—reward plausible hypotheses about what might happen next, grounded in cues implied by the scene brief; there is no single correct future—penalize only wild guesses unrelated to the situation. Language quality still matters more than counting every visual detail.';
             }
             $genPrompt = isset($speaking['image_generation_prompt']) && is_string($speaking['image_generation_prompt'])
                 ? trim($speaking['image_generation_prompt'])
