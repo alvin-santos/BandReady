@@ -168,6 +168,7 @@ export default function Home() {
                 <i className="bi bi-shield-exclamation" aria-hidden />
                 Practice disclaimer
               </Link>
+              {!user && (
               <Link
                 to="/register"
                 className="btn btn-outline-secondary btn-lg d-inline-flex align-items-center gap-2"
@@ -175,6 +176,7 @@ export default function Home() {
                 <i className="bi bi-person-plus" aria-hidden />
                 Create account
               </Link>
+              )}
             </div>
             {!user && (
               <p className="small text-muted mt-3 mb-0">

@@ -47,8 +47,8 @@ export default function MainLayout() {
           <Navbar.Toggle aria-controls="br-nav" />
           <Navbar.Collapse id="br-nav" className="justify-content-end">
             <Nav className="align-items-lg-center flex-lg-wrap justify-content-lg-end gap-lg-2 br-main-nav">
-              <Nav.Link as={Link} to="/exam/start" className={navItem}>
-                <i className="bi bi-play-circle" aria-hidden />
+              <Nav.Link as={Link} to="/exam/start" className={`${navItem} br-nav-cta`}>
+                <i className="bi bi-stopwatch" aria-hidden />
                 Start practice
               </Nav.Link>
               <Nav.Link as={Link} to="/practice-disclaimer" className={navItem}>
@@ -57,13 +57,9 @@ export default function MainLayout() {
               </Nav.Link>
               <Nav.Link as={Link} to="/subscription" className={navItem}>
                 <i className="bi bi-star-fill" aria-hidden />
-                Pro
-                {user && isSubscribed && <ProBadge variant="nav" className="ms-1" />}
+                Pro               
               </Nav.Link>
-              <Nav.Link as={Link} to="/forum" className={navItem}>
-                <i className="bi bi-chat-square-text" aria-hidden />
-                Forum
-              </Nav.Link>
+              
 
               <NavDropdown
                 title={
@@ -77,6 +73,10 @@ export default function MainLayout() {
                 <NavDropdown.Item as={Link} to="/rankings" className={navItem}>
                   <i className="bi bi-trophy" aria-hidden />
                   Rankings
+                </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/forum" className={navItem}>
+                  <i className="bi bi-chat-square-text" aria-hidden />
+                  Forum
                 </NavDropdown.Item>
                 <NavDropdown.Item as={Link} to="/resources" className={navItem}>
                   <i className="bi bi-file-earmark-arrow-down" aria-hidden />
@@ -103,10 +103,6 @@ export default function MainLayout() {
                     Profile
                     {isSubscribed && <ProBadge variant="nav" className="ms-1" />}
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/settings/tts-voices" className={navItem}>
-                    <i className="bi bi-mic" aria-hidden />
-                    TTS voices
-                  </Nav.Link>
                   <NavDropdown
                     title={
                       <span className="d-inline-flex align-items-center gap-2">
@@ -116,6 +112,10 @@ export default function MainLayout() {
                     }
                     id="br-nav-dd-insights"
                   >
+                    <NavDropdown.Item as={Link} to="/settings/tts-voices" className={navItem}>
+                      <i className="bi bi-mic" aria-hidden />
+                      TTS voices
+                    </NavDropdown.Item>
                     <NavDropdown.Item as={Link} to="/analytics" className={navItem}>
                       <i className="bi bi-graph-up-arrow" aria-hidden />
                       Analytics

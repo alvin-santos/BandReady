@@ -5,6 +5,20 @@ import { useAuth } from '../context/AuthContext.jsx';
 function buildCards(user) {
   return [
     {
+      icon: 'bi-bullseye',
+      title: 'Exam readiness',
+      text: 'Rolling snapshot from your scored practice—overall and by skill—so you see weak areas before test day (approximate; not an official prediction).',
+      to: user ? '/dashboard' : '/register',
+      linkLabel: user ? 'View readiness' : 'Create free account',
+    },
+    {
+      icon: 'bi-lightning-charge-fill',
+      title: 'Real-time scoring',
+      text: 'Multiple-choice, checkbox, and other auto-graded items score on submit with instant feedback—no waiting to know how you did on each item.',
+      to: '/exam/start',
+      linkLabel: 'Try a scored test',
+    },
+    {
       icon: 'bi-layers-fill',
       title: 'Full mock exams',
       text: 'Timed IELTS- and CELPIP-style runs—autosave, resume, and exam-style section flow.',
@@ -55,15 +69,21 @@ export default function HomeFloatingFeatureCards() {
 
   return (
     <section
-      className="br-home-float-features br-home-float-features--tight py-2 py-lg-3 mb-1 position-relative"
+      className="br-home-float-features br-home-float-features--tight py-2 mb-1 position-relative"
       aria-labelledby="br-home-float-features-title"
     >
       <div className="br-home-float-features-deco" aria-hidden />
-      <h2 id="br-home-float-features-title" className="h6 fw-bold text-center mb-0 position-relative">
-        Built for serious <span className="text-br-rose">prep</span>
+      <h2
+        id="br-home-float-features-title"
+        className="br-home-float-features__title fw-bold text-center mb-1 position-relative text-body"
+      >
+        Serious prep needs <span className="text-br-rose">serious tools</span>
       </h2>
-      <p className="text-muted text-center small mx-auto mb-2 position-relative" style={{ maxWidth: '32rem' }}>
-        Everything in one place—pick a path and go.
+      <p
+        className="text-muted text-center mx-auto mb-2 position-relative br-home-float-features__subtitle"
+        style={{ maxWidth: '36rem' }}
+      >
+        Readiness, scoring, full timed runs, and optional AI—everything in one place. Pick a card and go.
       </p>
       <Row className="g-2 justify-content-center position-relative">
         {cards.map((c, i) => (
@@ -74,7 +94,7 @@ export default function HomeFloatingFeatureCards() {
             >
               <i className={`bi ${c.icon} br-float-feature-card-bg-icon`} aria-hidden />
               <div className="br-float-feature-card-inner flex-grow-1 d-flex flex-column text-start position-relative">
-                <h3 className="small fw-bold mb-0 text-body">{c.title}</h3>
+                <h3 className="br-home-float-card-title text-body mb-0">{c.title}</h3>
                 <p className="small text-muted mb-1 flex-grow-1 lh-sm br-home-float-card-text">{c.text}</p>
                 <Link
                   to={c.to}
