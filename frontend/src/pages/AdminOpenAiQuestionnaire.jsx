@@ -12,6 +12,9 @@ const DEFAULT_SECTION_SCOPE = 'Listening';
 const DEFAULT_QUESTIONS_PER_TEST = '1';
 const DEFAULT_EXAM_TITLE = 'CELPIP General';
 
+/** Matches backend `AdminOpenAiQuestionnaireController::EXTRA_PROMPT_HISTORY_LIMIT`. */
+const SAVED_PROMPT_LIST_LIMIT = 50;
+
 /** Suggested `--test-title`: "{exam} {Section…}" in canonical section order; no sections → "{exam} Multi". */
 function buildSuggestedTestTitle(examTitle, orderedSectionNames) {
   const base = String(examTitle ?? '').trim() || 'CELPIP General';
@@ -19,6 +22,33 @@ function buildSuggestedTestTitle(examTitle, orderedSectionNames) {
     return `${base} Multi`;
   }
   return `${base} ${orderedSectionNames.join(' ')}`;
+}
+
+function celpipTaskLabel(section, taskId) {
+  if (!section || taskId == null || !Number.isFinite(Number(taskId))) {
+    return null;
+  }
+  const t = CELPIP_SECTION_TASKS[section]?.find((x) => x.id === taskId);
+  return t?.label ?? null;
+}
+
+function formatSavedPromptOption(p) {
+  const d = p.updated_at
+    ? new Date(p.updated_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+    : p.created_at
+      ? new Date(p.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+      : '';
+  const prev = String(p.preview || '').trim() || '(empty)';
+  const clipped = prev.length > 72 ? `${prev.slice(0, 72)}…` : prev;
+  const exam = p.exam_title ? String(p.exam_title).trim().slice(0, 32) : '';
+  const scope =
+    p.section && SECTIONS.includes(p.section)
+      ? p.celpip_task_number != null
+        ? `${p.section} · T${p.celpip_task_number}`
+        : p.section
+      : 'All sections';
+  const parts = [`#${p.id}`, exam || null, scope, d || null, clipped].filter(Boolean);
+  return parts.join(' · ');
 }
 
 function buildArtisanPreview(body) {
@@ -105,6 +135,11 @@ export default function AdminOpenAiQuestionnaire() {
   const [lines, setLines] = useState([]);
   const [lastPayload, setLastPayload] = useState(null);
   const [lastOk, setLastOk] = useState(null);
+  const [savedPrompts, setSavedPrompts] = useState([]);
+  const [historySelect, setHistorySelect] = useState('');
+  const [saveHistoryBusy, setSaveHistoryBusy] = useState(false);
+  /** When > 0, skip auto test-title sync and CELPIP task clear for that many effect runs (preset apply). */
+  const skipHistoryEffects = useRef(0);
   const terminalEndRef = useRef(null);
 
   const selectedSections = useMemo(
@@ -164,6 +199,104 @@ export default function AdminOpenAiQuestionnaire() {
 
   const artisanPreview = useMemo(() => buildArtisanPreview(requestBody), [requestBody]);
 
+  const loadSavedPrompts = useCallback(async () => {
+    try {
+      const res = await api.get('/admin/openai-questionnaire/extra-prompts');
+      setSavedPrompts(Array.isArray(res.data?.items) ? res.data.items : []);
+    } catch {
+      setSavedPrompts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSavedPrompts();
+  }, [loadSavedPrompts]);
+
+  const applySavedPrompt = useCallback(
+    (id) => {
+      const row = savedPrompts.find((p) => p.id === id);
+      if (!row || typeof row.body !== 'string') {
+        return;
+      }
+      const hasScopeMeta =
+        Boolean(row.exam_title) ||
+        Boolean(row.test_title) ||
+        (row.section && SECTIONS.includes(row.section)) ||
+        (row.celpip_task_number != null && row.section && SECTIONS.includes(row.section));
+
+      if (hasScopeMeta) {
+        skipHistoryEffects.current = 1;
+        setForm((prev) => {
+          const next = { ...prev, extraPrompt: row.body };
+          if (row.exam_title) {
+            next.examTitle = String(row.exam_title);
+          }
+          if (row.test_title) {
+            next.testTitle = String(row.test_title);
+          }
+          if (row.section && SECTIONS.includes(row.section)) {
+            next.sectionScope = row.section;
+            next.celpipTaskId =
+              row.celpip_task_number != null && Number.isFinite(Number(row.celpip_task_number))
+                ? Math.trunc(Number(row.celpip_task_number))
+                : null;
+          } else {
+            next.sectionScope = SECTION_SCOPE_ALL;
+            next.celpipTaskId = null;
+          }
+          if (prev.sectionScope !== 'Speaking' && next.sectionScope !== 'Speaking') {
+            next.withSpeakingImages = false;
+          }
+          return next;
+        });
+      } else {
+        setField('extraPrompt', row.body);
+      }
+    },
+    [savedPrompts, setField]
+  );
+
+  const saveCurrentPromptToHistory = useCallback(async () => {
+    const t = extraPrompt.trim();
+    if (!t) {
+      setErr('Nothing to save — extra instructions are empty.');
+      return;
+    }
+    setSaveHistoryBusy(true);
+    setErr('');
+    try {
+      const payload = { body: t };
+      const et = examTitle.trim();
+      const tt = testTitle.trim();
+      if (et) {
+        payload.exam_title = et;
+      }
+      if (tt) {
+        payload.test_title = tt;
+      }
+      if (sectionScope && SECTIONS.includes(sectionScope)) {
+        payload.section = sectionScope;
+        if (celpipTaskId != null && Number.isFinite(Number(celpipTaskId))) {
+          const tn = Math.trunc(Number(celpipTaskId));
+          if (tn >= 1) {
+            payload.celpip_task_number = tn;
+            const lab = celpipTaskLabel(sectionScope, tn);
+            if (lab) {
+              payload.celpip_task_label = lab;
+            }
+          }
+        }
+      }
+      await api.post('/admin/openai-questionnaire/extra-prompts', payload);
+      await loadSavedPrompts();
+    } catch (e) {
+      const d = e.response?.data;
+      setErr(d?.message || e.message || 'Could not save prompt.');
+    } finally {
+      setSaveHistoryBusy(false);
+    }
+  }, [celpipTaskId, examTitle, extraPrompt, loadSavedPrompts, sectionScope, testTitle]);
+
   const onJsonFile = useCallback((ev) => {
     const f = ev.target.files?.[0];
     ev.target.value = '';
@@ -190,6 +323,9 @@ export default function AdminOpenAiQuestionnaire() {
       setLines([`$ ${artisanPreview}`, `(exit ${exitCode})`, ...outLines]);
       setLastPayload(payload ?? null);
       setLastOk(ok);
+      if (ok) {
+        void loadSavedPrompts();
+      }
     } catch (e) {
       const d = e.response?.data;
       let msg = d?.message || e.message || 'Request failed';
@@ -213,32 +349,37 @@ export default function AdminOpenAiQuestionnaire() {
     } finally {
       setBusy(false);
     }
-  }, [artisanPreview, requestBody]);
+  }, [artisanPreview, loadSavedPrompts, requestBody]);
 
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [lines]);
 
-  /** Keep `--test-title` in sync with `--exam-title` + `--section` (overwrites manual edits when those change). */
+  const prevSectionForCelpipClear = useRef(sectionScope);
+
+  /** Keep `--test-title` in sync with exam + section; clear CELPIP task when the section actually changes. */
   useEffect(() => {
+    if (skipHistoryEffects.current > 0) {
+      skipHistoryEffects.current -= 1;
+      prevSectionForCelpipClear.current = sectionScope;
+      return;
+    }
     setForm((prev) => {
+      const sectionChanged = prevSectionForCelpipClear.current !== prev.sectionScope;
+      prevSectionForCelpipClear.current = prev.sectionScope;
       const ordered =
         prev.sectionScope && SECTIONS.includes(prev.sectionScope) ? [prev.sectionScope] : [];
       const next = {
         ...prev,
         testTitle: buildSuggestedTestTitle(prev.examTitle, ordered),
+        celpipTaskId: sectionChanged ? null : prev.celpipTaskId,
       };
-      if (prev.sectionScope !== 'Speaking' && prev.withSpeakingImages) {
+      if (next.sectionScope !== 'Speaking') {
         next.withSpeakingImages = false;
       }
       return next;
     });
   }, [examTitle, sectionScope]);
-
-  /** Changing section clears the selected CELPIP task (tasks are section-specific). */
-  useEffect(() => {
-    setForm((prev) => ({ ...prev, celpipTaskId: null }));
-  }, [sectionScope]);
 
   const showSpeakingImagesOption = sectionScope === 'Speaking';
 
@@ -438,6 +579,57 @@ export default function AdminOpenAiQuestionnaire() {
               <Form.Label className="small fw-semibold">
                 <code className="text-body">--prompt</code> — extra instructions
               </Form.Label>
+              <div className="d-flex flex-wrap align-items-end gap-2 mb-2">
+                <Form.Group className="flex-grow-1 mb-0" style={{ minWidth: '12rem' }}>
+                  <Form.Label className="small text-muted mb-1">Insert a saved prompt</Form.Label>
+                  <Form.Select
+                    aria-label="Insert a previously saved extra prompt"
+                    value={historySelect}
+                    disabled={busy || savedPrompts.length === 0}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setHistorySelect(v);
+                      if (v === '') {
+                        return;
+                      }
+                      const id = Number.parseInt(v, 10);
+                      if (!Number.isNaN(id)) {
+                        applySavedPrompt(id);
+                      }
+                      queueMicrotask(() => setHistorySelect(''));
+                    }}
+                  >
+                    <option value="">
+                      {savedPrompts.length === 0 ? 'No saved prompts yet' : 'Recent saved prompts…'}
+                    </option>
+                    {savedPrompts.map((p) => (
+                      <option key={p.id} value={String(p.id)}>
+                        {formatSavedPromptOption(p)}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+                <Button
+                  type="button"
+                  variant="outline-secondary"
+                  size="sm"
+                  className="mb-0"
+                  disabled={busy || saveHistoryBusy || extraPrompt.trim() === ''}
+                  onClick={() => void saveCurrentPromptToHistory()}
+                >
+                  {saveHistoryBusy ? (
+                    <>
+                      <Spinner animation="border" size="sm" className="me-1" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-bookmark-plus me-1" aria-hidden />
+                      Save to history
+                    </>
+                  )}
+                </Button>
+              </div>
               <Form.Control
                 as="textarea"
                 rows={2}
@@ -445,6 +637,12 @@ export default function AdminOpenAiQuestionnaire() {
                 value={extraPrompt}
                 onChange={(e) => setField('extraPrompt', e.target.value)}
               />
+              <Form.Text className="text-muted">
+                Successful runs with non-empty text here are stored automatically (up to {SAVED_PROMPT_LIST_LIMIT}{' '}
+                recent; not on dry-run), with exam, section, and CELPIP task when set. Same instruction text replaces the
+                existing row (SHA-256 dedupe). Use <strong className="text-body">Save to history</strong> anytime without
+                running.
+              </Form.Text>
               <Form.Check
                 id="openai-omit-passage"
                 className="small mt-2"
