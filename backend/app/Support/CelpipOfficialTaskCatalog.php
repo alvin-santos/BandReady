@@ -92,7 +92,7 @@ class CelpipOfficialTaskCatalog
     {
         $lines = [];
         $lines[] = '**Official-style task types (CELPIP General — unofficial BandReady practice; not affiliated with Paragon Testing):**';
-        $lines[] = 'Shape passages, audio scenarios, prompts, and stems so they authentically fit the **spirit** of these named task types. Do not add "Task 1" labels inside `question_text` unless the scenario naturally reads like an exam rubric header—focus on realistic formats (e.g. voicemail + problem for Listening problem-solving; email/letter for Reading correspondence; for Speaking picture runs: **Task 3 — Describing a Scene** = describe what is shown; **Task 4 — Making predictions** = ask the learner to **predict what happens next from the image**, not the same wording as a describe-the-scene task).';
+        $lines[] = 'Shape passages, audio scenarios, prompts, and stems so they authentically fit the **spirit** of these named task types. Do not add "Task 1" labels inside `question_text` unless the scenario naturally reads like an exam rubric header—focus on realistic formats (e.g. voicemail + problem for Listening problem-solving; email/letter for Reading correspondence; for Speaking picture runs: **Task 3 — Describing a Scene** = describe what is shown (**people, objects, places**, etc.—vary image subjects; not always a group of people); **Task 4 — Making predictions** = ask the learner to **predict what happens next from the image** using a scene with **clear narrative tension** (not object-only stills), not the same wording as a describe-the-scene task).';
         $lines[] = '';
 
         foreach (['Listening', 'Reading', 'Writing', 'Speaking'] as $section) {
