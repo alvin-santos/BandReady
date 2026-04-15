@@ -133,6 +133,10 @@ Route::middleware(['auth:sanctum', 'verified', 'admin'])->prefix('admin')->group
 
     Route::get('/openai-questionnaire/extra-prompts', [AdminOpenAiQuestionnaireController::class, 'extraPromptsIndex']);
     Route::post('/openai-questionnaire/extra-prompts', [AdminOpenAiQuestionnaireController::class, 'extraPromptsStore']);
+    Route::get('/openai-questionnaire/extra-prompts/{id}', [AdminOpenAiQuestionnaireController::class, 'extraPromptsShow'])
+        ->whereNumber('id');
+    Route::put('/openai-questionnaire/extra-prompts/{id}', [AdminOpenAiQuestionnaireController::class, 'extraPromptsUpdate'])
+        ->whereNumber('id');
     Route::delete('/openai-questionnaire/extra-prompts/{id}', [AdminOpenAiQuestionnaireController::class, 'extraPromptsDestroy'])
         ->whereNumber('id');
     Route::post('/openai-questionnaire/run', [AdminOpenAiQuestionnaireController::class, 'run']);

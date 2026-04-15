@@ -16,36 +16,108 @@ class AdminOpenAiQuestionnaireController extends Controller
 
     private const EXTRA_PROMPT_HISTORY_LIMIT = 50;
 
+    private const EXTRA_PROMPT_LIST_MAX = 500;
+
     /** @var list<string> */
     private const SECTION_VALUES = ['Listening', 'Reading', 'Writing', 'Speaking'];
 
-    public function extraPromptsIndex(): JsonResponse
+    public function extraPromptsIndex(Request $request): JsonResponse
     {
+        $limit = self::EXTRA_PROMPT_HISTORY_LIMIT;
+        $raw = $request->query('limit');
+        if ($raw !== null && $raw !== '') {
+            $limit = min(self::EXTRA_PROMPT_LIST_MAX, max(1, (int) $raw));
+        }
+
         $rows = OpenaiQuestionnaireExtraPrompt::query()
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
-            ->limit(self::EXTRA_PROMPT_HISTORY_LIMIT)
+            ->limit($limit)
             ->get();
 
-        $items = $rows->map(function (OpenaiQuestionnaireExtraPrompt $row) {
-            $body = (string) $row->body;
-            $preview = mb_substr(preg_replace('/\s+/u', ' ', trim($body)) ?? '', 0, 120);
-
-            return [
-                'id' => $row->id,
-                'body' => $body,
-                'preview' => $preview,
-                'exam_title' => $row->exam_title,
-                'test_title' => $row->test_title,
-                'section' => $row->section,
-                'celpip_task_number' => $row->celpip_task_number,
-                'celpip_task_label' => $row->celpip_task_label,
-                'created_at' => $row->created_at?->toIso8601String(),
-                'updated_at' => $row->updated_at?->toIso8601String(),
-            ];
-        });
+        $items = $rows->map(fn (OpenaiQuestionnaireExtraPrompt $row) => $this->formatExtraPromptItem($row));
 
         return response()->json(['items' => $items]);
+    }
+
+    public function extraPromptsShow(int $id): JsonResponse
+    {
+        $row = OpenaiQuestionnaireExtraPrompt::query()->find($id);
+
+        return $row === null
+            ? response()->json(['message' => 'Not found.'], 404)
+            : response()->json(['item' => $this->formatExtraPromptItem($row)]);
+    }
+
+    public function extraPromptsUpdate(Request $request, int $id): JsonResponse
+    {
+        $row = OpenaiQuestionnaireExtraPrompt::query()->find($id);
+        if ($row === null) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'body' => 'required|string|max:'.self::EXTRA_PROMPT_MAX,
+            'exam_title' => 'nullable|string|max:255',
+            'test_title' => 'nullable|string|max:500',
+            'section' => 'nullable|string|in:'.implode(',', self::SECTION_VALUES),
+            'celpip_task_number' => 'nullable|integer|min:1|max:99',
+            'celpip_task_label' => 'nullable|string|max:255',
+        ]);
+        $body = trim($validated['body']);
+        if ($body === '') {
+            return response()->json(['message' => 'body must not be empty.'], 422);
+        }
+        $hash = hash('sha256', $body);
+        $conflict = OpenaiQuestionnaireExtraPrompt::query()
+            ->where('body_hash', $hash)
+            ->where('id', '!=', $row->id)
+            ->first();
+        if ($conflict !== null) {
+            return response()->json([
+                'message' => 'Another saved prompt already uses this exact text (id '.$conflict->id.'). Edit or delete that row first.',
+            ], 422);
+        }
+
+        $context = $this->normalizeExtraPromptContextFromInput([
+            'exam_title' => $validated['exam_title'] ?? null,
+            'test_title' => $validated['test_title'] ?? null,
+            'section' => $validated['section'] ?? null,
+            'celpip_task_number' => $validated['celpip_task_number'] ?? null,
+            'celpip_task_label' => $validated['celpip_task_label'] ?? null,
+        ]);
+        $row->fill(array_merge(
+            [
+                'body' => $body,
+                'body_hash' => $hash,
+            ],
+            $context
+        ));
+        $row->save();
+
+        return response()->json(['item' => $this->formatExtraPromptItem($row->fresh())]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatExtraPromptItem(OpenaiQuestionnaireExtraPrompt $row): array
+    {
+        $body = (string) $row->body;
+        $preview = mb_substr(preg_replace('/\s+/u', ' ', trim($body)) ?? '', 0, 120);
+
+        return [
+            'id' => $row->id,
+            'body' => $body,
+            'preview' => $preview,
+            'exam_title' => $row->exam_title,
+            'test_title' => $row->test_title,
+            'section' => $row->section,
+            'celpip_task_number' => $row->celpip_task_number,
+            'celpip_task_label' => $row->celpip_task_label,
+            'created_at' => $row->created_at?->toIso8601String(),
+            'updated_at' => $row->updated_at?->toIso8601String(),
+        ];
     }
 
     public function extraPromptsStore(Request $request): JsonResponse

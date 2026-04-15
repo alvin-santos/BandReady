@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Col, Form, Row, Spinner } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { CELPIP_SECTION_CARD_THEME, CELPIP_SECTION_TASKS } from '../data/celpipOfficialTasks.js';
 
@@ -389,11 +390,19 @@ export default function AdminOpenAiQuestionnaire() {
         <i className="bi bi-robot text-br-rose" aria-hidden />
         OpenAI questionnaire
       </h1>
-      <p className="text-muted small mb-4">
+      <p className="text-muted small mb-2">
         Same flags as <code className="text-body">openai:generate-questionnaire</code> (generate → validate →{' '}
         <strong className="text-body">importPayload</strong>). Paste or upload JSON for <code className="text-body">--file</code>{' '}
         instead of a path. Requires <code className="text-body">OPENAI_API_KEY</code> when not using file JSON. Long jobs
         can take several minutes.
+      </p>
+      <p className="small mb-4">
+        <Link to="/admin/openai-questionnaire/prompts" className="fw-semibold">
+          Manage saved extra prompts
+        </Link>
+        <span className="text-muted"> — view, edit, or delete stored </span>
+        <code className="text-body">--prompt</code>
+        <span className="text-muted"> text and metadata.</span>
       </p>
 
       {err && (

@@ -36,6 +36,7 @@ import AdminRanking from './pages/AdminRanking.jsx';
 import AdminTtsVoices from './pages/AdminTtsVoices.jsx';
 import AdminContactMessages from './pages/AdminContactMessages.jsx';
 import AdminOpenAiQuestionnaire from './pages/AdminOpenAiQuestionnaire.jsx';
+import AdminOpenAiQuestionnairePrompts from './pages/AdminOpenAiQuestionnairePrompts.jsx';
 import AdminDatabaseBackups from './pages/AdminDatabaseBackups.jsx';
 import AdminBandieTutor from './pages/AdminBandieTutor.jsx';
 import AdminExamNav from './pages/AdminExamNav.jsx';
@@ -159,6 +160,7 @@ export const router = createBrowserRouter([
           { path: 'questions', element: <AdminQuestions /> },
           { path: 'question-bank', element: <AdminQuestionBank /> },
           { path: 'openai-questionnaire', element: <AdminOpenAiQuestionnaire /> },
+          { path: 'openai-questionnaire/prompts', element: <AdminOpenAiQuestionnairePrompts /> },
           { path: 'ads', element: <AdminAds /> },
           { path: 'stats', element: <AdminStats /> },
           { path: 'ranking-settings', element: <AdminRanking /> },
