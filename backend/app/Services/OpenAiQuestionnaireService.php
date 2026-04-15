@@ -787,6 +787,7 @@ SPEAK_IMG;
                         }
                         try {
                             $qRow = $this->prepareQuestionRowForImport($qRow, $sectionName);
+                            $qRow = $this->inferMissingCelpipTaskMetadataFromSingleAllowed($qRow, $sectionName, $allowedCelpip);
                         } catch (InvalidArgumentException $e) {
                             throw new InvalidArgumentException("Test \"{$title}\" question #".((int) $qi + 1).': '.$e->getMessage());
                         }
@@ -969,6 +970,7 @@ MSG;
                             }
                             try {
                                 $qRow = $this->prepareQuestionRowForImport($qRow, $secRow['name']);
+                                $qRow = $this->inferMissingCelpipTaskMetadataFromSingleAllowed($qRow, $secRow['name'], $allowedCelpip);
                             } catch (InvalidArgumentException $e) {
                                 throw new InvalidArgumentException('Test "'.$test->title.'" question #'.($qi + 1).': '.$e->getMessage());
                             }
@@ -1299,6 +1301,40 @@ MSG;
     private function prepareQuestionRowForImport(array $qRow, string $sectionName): array
     {
         $qRow = $this->normalizeQuestionRowForImport($qRow, $sectionName);
+
+        return $this->applyCelpipTaskMetadata($qRow, $sectionName);
+    }
+
+    /**
+     * When a run allows exactly one CELPIP task for a section, the model sometimes omits
+     * celpip_task_number / celpip_task_label (e.g. short completions on speaking_prompt + image fields).
+     * Fill from the catalog so validation and import stay aligned with the exam's task scope.
+     *
+     * @param  array<string, mixed>  $qRow
+     * @param  list<int>|null  $allowedCelpipTaskNumbers
+     * @return array<string, mixed>
+     */
+    private function inferMissingCelpipTaskMetadataFromSingleAllowed(
+        array $qRow,
+        string $sectionName,
+        ?array $allowedCelpipTaskNumbers
+    ): array {
+        if ($allowedCelpipTaskNumbers === null || count($allowedCelpipTaskNumbers) !== 1) {
+            return $qRow;
+        }
+        if (! isset(CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName])) {
+            return $qRow;
+        }
+        $existing = $qRow['celpip_task_number'] ?? null;
+        if ($existing !== null && $existing !== '' && is_numeric($existing)) {
+            return $qRow;
+        }
+        $only = (int) $allowedCelpipTaskNumbers[0];
+        if (! isset(CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName][$only])) {
+            return $qRow;
+        }
+        $qRow['celpip_task_number'] = $only;
+        $qRow['celpip_task_label'] = CelpipOfficialTaskCatalog::TASKS_BY_SECTION[$sectionName][$only];
 
         return $this->applyCelpipTaskMetadata($qRow, $sectionName);
     }
