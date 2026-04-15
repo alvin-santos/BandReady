@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Col, Form, Row, Spinner } from 'react-bootstrap';
+import { Alert, Button, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { CELPIP_SECTION_CARD_THEME, CELPIP_SECTION_TASKS } from '../data/celpipOfficialTasks.js';
@@ -33,23 +33,15 @@ function celpipTaskLabel(section, taskId) {
   return t?.label ?? null;
 }
 
-function formatSavedPromptOption(p) {
-  const d = p.updated_at
-    ? new Date(p.updated_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
-    : p.created_at
-      ? new Date(p.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
-      : '';
-  const prev = String(p.preview || '').trim() || '(empty)';
-  const clipped = prev.length > 72 ? `${prev.slice(0, 72)}…` : prev;
-  const exam = p.exam_title ? String(p.exam_title).trim().slice(0, 32) : '';
-  const scope =
-    p.section && SECTIONS.includes(p.section)
-      ? p.celpip_task_number != null
-        ? `${p.section} · T${p.celpip_task_number}`
-        : p.section
-      : 'All sections';
-  const parts = [`#${p.id}`, exam || null, scope, d || null, clipped].filter(Boolean);
-  return parts.join(' · ');
+function formatPromptLibraryWhen(iso) {
+  if (!iso) {
+    return '—';
+  }
+  try {
+    return new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return String(iso);
+  }
 }
 
 function buildArtisanPreview(body) {
@@ -137,7 +129,8 @@ export default function AdminOpenAiQuestionnaire() {
   const [lastPayload, setLastPayload] = useState(null);
   const [lastOk, setLastOk] = useState(null);
   const [savedPrompts, setSavedPrompts] = useState([]);
-  const [historySelect, setHistorySelect] = useState('');
+  const [savedPromptModalOpen, setSavedPromptModalOpen] = useState(false);
+  const [savedPromptModalLoading, setSavedPromptModalLoading] = useState(false);
   const [saveHistoryBusy, setSaveHistoryBusy] = useState(false);
   /** When > 0, skip auto test-title sync and CELPIP task clear for that many effect runs (preset apply). */
   const skipHistoryEffects = useRef(0);
@@ -147,6 +140,14 @@ export default function AdminOpenAiQuestionnaire() {
     () => (sectionScope && SECTIONS.includes(sectionScope) ? [sectionScope] : []),
     [sectionScope]
   );
+
+  /** Saved prompts shown in the library modal: match single `--section`, or all rows when scope is unrestricted. */
+  const savedPromptsForModal = useMemo(() => {
+    if (!sectionScope || !SECTIONS.includes(sectionScope)) {
+      return savedPrompts;
+    }
+    return savedPrompts.filter((p) => p.section === sectionScope);
+  }, [savedPrompts, sectionScope]);
 
   const requestBody = useMemo(() => {
     const q = String(questionsPerTest).trim();
@@ -213,49 +214,55 @@ export default function AdminOpenAiQuestionnaire() {
     void loadSavedPrompts();
   }, [loadSavedPrompts]);
 
-  const applySavedPrompt = useCallback(
-    (id) => {
-      const row = savedPrompts.find((p) => p.id === id);
-      if (!row || typeof row.body !== 'string') {
-        return;
-      }
-      const hasScopeMeta =
-        Boolean(row.exam_title) ||
-        Boolean(row.test_title) ||
-        (row.section && SECTIONS.includes(row.section)) ||
-        (row.celpip_task_number != null && row.section && SECTIONS.includes(row.section));
+  const applySavedPromptFromRow = useCallback((row) => {
+    if (!row || typeof row.body !== 'string') {
+      return;
+    }
+    const hasScopeMeta =
+      Boolean(row.exam_title) ||
+      Boolean(row.test_title) ||
+      (row.section && SECTIONS.includes(row.section)) ||
+      (row.celpip_task_number != null && row.section && SECTIONS.includes(row.section));
 
-      if (hasScopeMeta) {
-        skipHistoryEffects.current = 1;
-        setForm((prev) => {
-          const next = { ...prev, extraPrompt: row.body };
-          if (row.exam_title) {
-            next.examTitle = String(row.exam_title);
-          }
-          if (row.test_title) {
-            next.testTitle = String(row.test_title);
-          }
-          if (row.section && SECTIONS.includes(row.section)) {
-            next.sectionScope = row.section;
-            next.celpipTaskId =
-              row.celpip_task_number != null && Number.isFinite(Number(row.celpip_task_number))
-                ? Math.trunc(Number(row.celpip_task_number))
-                : null;
-          } else {
-            next.sectionScope = SECTION_SCOPE_ALL;
-            next.celpipTaskId = null;
-          }
-          if (prev.sectionScope !== 'Speaking' && next.sectionScope !== 'Speaking') {
-            next.withSpeakingImages = false;
-          }
-          return next;
-        });
-      } else {
-        setField('extraPrompt', row.body);
-      }
-    },
-    [savedPrompts, setField]
-  );
+    if (hasScopeMeta) {
+      skipHistoryEffects.current = 1;
+      setForm((prev) => {
+        const next = { ...prev, extraPrompt: row.body };
+        if (row.exam_title) {
+          next.examTitle = String(row.exam_title);
+        }
+        if (row.test_title) {
+          next.testTitle = String(row.test_title);
+        }
+        if (row.section && SECTIONS.includes(row.section)) {
+          next.sectionScope = row.section;
+          next.celpipTaskId =
+            row.celpip_task_number != null && Number.isFinite(Number(row.celpip_task_number))
+              ? Math.trunc(Number(row.celpip_task_number))
+              : null;
+        } else {
+          next.sectionScope = SECTION_SCOPE_ALL;
+          next.celpipTaskId = null;
+        }
+        if (prev.sectionScope !== 'Speaking' && next.sectionScope !== 'Speaking') {
+          next.withSpeakingImages = false;
+        }
+        return next;
+      });
+    } else {
+      setField('extraPrompt', row.body);
+    }
+  }, [setField]);
+
+  const openSavedPromptModal = useCallback(async () => {
+    setSavedPromptModalOpen(true);
+    setSavedPromptModalLoading(true);
+    try {
+      await loadSavedPrompts();
+    } finally {
+      setSavedPromptModalLoading(false);
+    }
+  }, [loadSavedPrompts]);
 
   const saveCurrentPromptToHistory = useCallback(async () => {
     const t = extraPrompt.trim();
@@ -588,36 +595,18 @@ export default function AdminOpenAiQuestionnaire() {
               <Form.Label className="small fw-semibold">
                 <code className="text-body">--prompt</code> — extra instructions
               </Form.Label>
-              <div className="d-flex flex-wrap align-items-end gap-2 mb-2">
-                <Form.Group className="flex-grow-1 mb-0" style={{ minWidth: '12rem' }}>
-                  <Form.Label className="small text-muted mb-1">Insert a saved prompt</Form.Label>
-                  <Form.Select
-                    aria-label="Insert a previously saved extra prompt"
-                    value={historySelect}
-                    disabled={busy || savedPrompts.length === 0}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setHistorySelect(v);
-                      if (v === '') {
-                        return;
-                      }
-                      const id = Number.parseInt(v, 10);
-                      if (!Number.isNaN(id)) {
-                        applySavedPrompt(id);
-                      }
-                      queueMicrotask(() => setHistorySelect(''));
-                    }}
-                  >
-                    <option value="">
-                      {savedPrompts.length === 0 ? 'No saved prompts yet' : 'Recent saved prompts…'}
-                    </option>
-                    {savedPrompts.map((p) => (
-                      <option key={p.id} value={String(p.id)}>
-                        {formatSavedPromptOption(p)}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
+              <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant="outline-secondary"
+                  size="sm"
+                  className="d-inline-flex align-items-center gap-1"
+                  disabled={busy}
+                  onClick={() => void openSavedPromptModal()}
+                >
+                  <i className="bi bi-journal-richtext" aria-hidden />
+                  Browse saved prompts…
+                </Button>
                 <Button
                   type="button"
                   variant="outline-secondary"
@@ -796,6 +785,127 @@ export default function AdminOpenAiQuestionnaire() {
           </div>
         </Col>
       </Row>
+
+      <Modal
+        show={savedPromptModalOpen}
+        onHide={() => !savedPromptModalLoading && setSavedPromptModalOpen(false)}
+        size="lg"
+        centered
+        scrollable
+      >
+        <Modal.Header closeButton>
+          <Modal.Title className="h5">Saved extra prompts</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {savedPromptModalLoading ? (
+            <div className="d-flex align-items-center gap-2 text-muted small">
+              <Spinner animation="border" size="sm" />
+              Loading…
+            </div>
+          ) : savedPrompts.length === 0 ? (
+            <p className="small text-muted mb-0">
+              No saved prompts yet. Use <strong className="text-body">Save to history</strong> below the textarea, or run a
+              successful generation with non-empty instructions.
+            </p>
+          ) : savedPromptsForModal.length === 0 ? (
+            <p className="small text-muted mb-0">
+              No saved prompts are tagged for{' '}
+              <strong className="text-body">
+                {sectionScope && SECTIONS.includes(sectionScope) ? sectionScope : 'this section'}
+              </strong>
+              . Choose <strong className="text-body">All sections (no filter)</strong> above to see every prompt, save the
+              current instructions with this section selected, or edit tags in the{' '}
+              <Link to="/admin/openai-questionnaire/prompts" onClick={() => setSavedPromptModalOpen(false)}>
+                prompt library
+              </Link>
+              .
+            </p>
+          ) : (
+            <div className="table-responsive">
+              {sectionScope && SECTIONS.includes(sectionScope) && (
+                <p className="small text-muted mb-2">
+                  Showing only prompts saved for <strong className="text-body">{sectionScope}</strong> (same as your{' '}
+                  <code className="text-body">--section</code> scope). Prompts saved as “All sections” are hidden here.
+                </p>
+              )}
+              <Table hover size="sm" className="mb-0 align-middle small">
+                <thead className="table-light">
+                  <tr>
+                    <th className="text-nowrap">#</th>
+                    <th>Exam</th>
+                    <th>Section</th>
+                    <th>CELPIP</th>
+                    <th>Preview</th>
+                    <th className="text-nowrap">Updated</th>
+                    <th className="text-end text-nowrap"> </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savedPromptsForModal.map((row) => (
+                    <tr key={row.id}>
+                      <td className="text-muted">{row.id}</td>
+                      <td>{row.exam_title || '—'}</td>
+                      <td>{row.section || <span className="text-muted">All</span>}</td>
+                      <td>
+                        {row.celpip_task_number != null ? (
+                          <>
+                            T{row.celpip_task_number}
+                            {row.celpip_task_label ? (
+                              <>
+                                <br />
+                                <span className="text-body">{row.celpip_task_label}</span>
+                              </>
+                            ) : null}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td style={{ maxWidth: '220px' }} className="text-break">
+                        {String(row.preview || '').trim() || '(empty)'}
+                      </td>
+                      <td className="text-muted text-nowrap">{formatPromptLibraryWhen(row.updated_at)}</td>
+                      <td className="text-end text-nowrap">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => {
+                            applySavedPromptFromRow(row);
+                            setSavedPromptModalOpen(false);
+                          }}
+                        >
+                          Use
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="d-flex flex-wrap gap-2 justify-content-between">
+          <Link
+            to="/admin/openai-questionnaire/prompts"
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => setSavedPromptModalOpen(false)}
+          >
+            <i className="bi bi-box-arrow-up-right me-1" aria-hidden />
+            Open prompt library
+          </Link>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={savedPromptModalLoading}
+            onClick={() => setSavedPromptModalOpen(false)}
+          >
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {lastPayload && (
         <div className="br-card p-3 mb-4">
