@@ -8,18 +8,25 @@ use InvalidArgumentException;
 
 class OpenAiStudyPlanService
 {
+    public const SUMMARY_START = '<<<BR_PLAN_SUMMARY>>>';
+
+    public const SUMMARY_END = '<<<END_BR_PLAN_SUMMARY>>>';
+
     /**
      * @param  list<string>  $weakAreas
+     * @return array{summary: string, plan_text: string}
      */
     public function generatePlanText(
         string $examTypeLabel,
-        int $daysRemaining,
+        int $calendarDaysUntilExam,
+        int $studySessionCount,
+        string $scheduleSummary,
         string $studyTimeLabel,
         ?string $currentLevel,
         array $weakAreas,
         string $planPacing,
         ?int $userId = null,
-    ): string {
+    ): array {
         $key = config('openai.api_key');
         if (! is_string($key) || $key === '') {
             throw new InvalidArgumentException('OPENAI_API_KEY is not set in your environment.');
@@ -43,23 +50,35 @@ Create a personalized exam preparation plan.
 
 User Details:
 Exam Type: {$examTypeLabel}
-Days Remaining: {$daysRemaining}
+Calendar days until the exam: {$calendarDaysUntilExam}
+Study sessions to schedule: {$studySessionCount} (Day 1 = first study session; Day {$studySessionCount} = last session before the exam)
+Schedule: {$scheduleSummary}
 Study Time Per Day: {$studyTimeLabel}
 Current Level: {$level}
 Weak Areas: {$weak}
 
 Plan pacing label (use this tone and density): {$planPacing}
 
+Before the session-by-session plan, write a short **plan summary** for the learner: 2 tight paragraphs (no bullet lists) that explain the overall approach, how skills rotate, and what success looks like by exam day. Keep it encouraging and concrete.
+
+Wrap that summary **exactly** between these two marker lines (each on its own line, markers spelled exactly):
+
+<<<BR_PLAN_SUMMARY>>>
+(your summary paragraphs here)
+<<<END_BR_PLAN_SUMMARY>>>
+
+After the closing marker, leave a blank line, then start the session plan.
+
 Requirements:
-- Create a day-by-day plan for each day from Day 1 through Day {$daysRemaining} (inclusive).
+- Create exactly {$studySessionCount} study-session blocks labeled Day 1 through Day {$studySessionCount} (inclusive). Each block is one study session on the user's rhythm (not necessarily every calendar day).
 - Include speaking, writing, reading, and listening across the schedule.
 - Focus somewhat more on weak areas without neglecting other skills.
-- Keep tasks realistic for the stated daily study time.
-- Add one short tip per day after the tasks (prefix the line with "Tip: ").
-- Limit tasks to 2–3 bullet lines per day (use lines starting with "* ").
+- Keep tasks realistic for the stated study time per session.
+- Add one short tip per session after the tasks (prefix the line with "Tip: ").
+- Limit tasks to 2–3 bullet lines per session (use lines starting with "* ").
 - Make it easy to scan.
 
-Format (repeat for every day):
+Format (repeat for every session):
 
 Day 1:
 
@@ -70,11 +89,11 @@ Tip: ...
 Day 2:
 ...
 
-After the last day, add a final section exactly titled:
+After the last session, add a final section exactly titled:
 
 Final Section:
 
-* Last 3 days strategy (as bullet lines starting with "* ")
+* Last 3 study sessions strategy (as bullet lines starting with "* ")
 * Exam day tips (as bullet lines starting with "* ")
 USR;
 
@@ -110,7 +129,7 @@ USR;
                 throw new InvalidArgumentException('OpenAI returned an empty study plan.');
             }
 
-            return trim($content);
+            return self::splitPlanOutput(trim($content));
         } catch (\Throwable $e) {
             $caught = $e;
             throw $e;
@@ -118,7 +137,7 @@ USR;
             app(OpenAiActivityLogger::class)->recordChatCompletion(
                 'study_plan',
                 $userId,
-                'days:'.$daysRemaining,
+                'cal:'.$calendarDaysUntilExam.',sess:'.$studySessionCount,
                 $url,
                 $requestPayload,
                 $httpResponse,
@@ -126,6 +145,32 @@ USR;
                 $caught,
             );
         }
+    }
+
+    /**
+     * @return array{summary: string, plan_text: string}
+     */
+    public static function splitPlanOutput(string $raw): array
+    {
+        $start = self::SUMMARY_START;
+        $end = self::SUMMARY_END;
+        $p0 = strpos($raw, $start);
+        if ($p0 === false) {
+            return ['summary' => '', 'plan_text' => $raw];
+        }
+        $p1 = $p0 + strlen($start);
+        $p2 = strpos($raw, $end, $p1);
+        if ($p2 === false) {
+            return ['summary' => '', 'plan_text' => $raw];
+        }
+        $summary = trim(substr($raw, $p1, $p2 - $p1));
+        $body = trim(substr($raw, $p2 + strlen($end)));
+        $body = preg_replace('/^\s+/s', '', $body) ?? '';
+        if ($body === '') {
+            return ['summary' => '', 'plan_text' => $raw];
+        }
+
+        return ['summary' => $summary, 'plan_text' => $body];
     }
 
     public static function planPacingLabel(int $daysRemaining): string

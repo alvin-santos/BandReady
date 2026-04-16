@@ -15,7 +15,11 @@ class StudyPlan extends Model
         'study_time',
         'current_level',
         'weak_areas',
+        'schedule_mode',
+        'schedule_custom_days',
+        'study_session_count',
         'plan_text',
+        'plan_summary',
         'completed_days',
         'regenerate_count_today',
         'regenerate_window_date',
@@ -30,6 +34,7 @@ class StudyPlan extends Model
         return [
             'exam_date' => 'date',
             'weak_areas' => 'array',
+            'schedule_custom_days' => 'array',
             'completed_days' => 'array',
             'regenerate_window_date' => 'date',
         ];

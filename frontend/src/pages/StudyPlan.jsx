@@ -47,6 +47,24 @@ const WEAK = [
   { value: 'listening', label: 'Listening' },
 ];
 
+const SCHEDULE_MODES = [
+  { value: 'everyday', label: 'Every day' },
+  { value: 'weekdays', label: 'Weekdays (Mon–Fri)' },
+  { value: 'weekends', label: 'Weekends (Sat–Sun)' },
+  { value: 'custom', label: 'Custom days' },
+];
+
+/** Carbon-style ISO weekday: 1 = Monday … 7 = Sunday */
+const ISO_WEEKDAYS = [
+  { iso: 1, label: 'Mon' },
+  { iso: 2, label: 'Tue' },
+  { iso: 3, label: 'Wed' },
+  { iso: 4, label: 'Thu' },
+  { iso: 5, label: 'Fri' },
+  { iso: 6, label: 'Sat' },
+  { iso: 7, label: 'Sun' },
+];
+
 function tomorrowISODate() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -99,6 +117,9 @@ export default function StudyPlan() {
   const [studyTime, setStudyTime] = useState('1h');
   const [currentLevel, setCurrentLevel] = useState('');
   const [weakAreas, setWeakAreas] = useState([]);
+  const [scheduleMode, setScheduleMode] = useState('everyday');
+  /** @type {number[]} */
+  const [scheduleCustomDays, setScheduleCustomDays] = useState([1, 2, 3, 4, 5]);
 
   const [editExamDate, setEditExamDate] = useState('');
 
@@ -131,11 +152,34 @@ export default function StudyPlan() {
     load();
   }, [user, load]);
 
+  useEffect(() => {
+    if (!showCreate) {
+      return;
+    }
+    if (plan) {
+      setExamType(plan.exam_type || 'ielts_general');
+      setExamDate(plan.exam_date || tomorrowISODate());
+      setStudyTime(plan.study_time || '1h');
+      setCurrentLevel(plan.current_level || '');
+      setWeakAreas(Array.isArray(plan.weak_areas) ? [...plan.weak_areas] : []);
+      setScheduleMode(plan.schedule_mode || 'everyday');
+      setScheduleCustomDays(
+        plan.schedule_mode === 'custom' && Array.isArray(plan.schedule_custom_days) && plan.schedule_custom_days.length
+          ? [...plan.schedule_custom_days].sort((a, b) => a - b)
+          : [1, 2, 3, 4, 5]
+      );
+    } else {
+      setScheduleMode('everyday');
+      setScheduleCustomDays([1, 2, 3, 4, 5]);
+    }
+  }, [showCreate, plan]);
+
   const parsed = useMemo(() => parseStudyPlanText(plan?.plan ?? ''), [plan]);
 
   const totalDays = plan?.days_remaining ?? 0;
+  const totalSessions = plan?.study_session_count ?? plan?.days_remaining ?? 0;
   const completed = plan?.completed_days?.length ?? 0;
-  const progress = totalDays > 0 ? Math.min(100, Math.round((completed / totalDays) * 100)) : 0;
+  const progress = totalSessions > 0 ? Math.min(100, Math.round((completed / totalSessions) * 100)) : 0;
 
   const validateFormDate = () => {
     if (!examDate) {
@@ -161,11 +205,24 @@ export default function StudyPlan() {
     setWeakAreas((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   };
 
+  const toggleScheduleIso = (iso) => {
+    setScheduleCustomDays((prev) => {
+      if (prev.includes(iso)) {
+        return prev.filter((x) => x !== iso);
+      }
+      return [...prev, iso].sort((a, b) => a - b);
+    });
+  };
+
   const onGenerate = async () => {
     setFormErr('');
     const v = validateFormDate();
     if (v) {
       setFormErr(v);
+      return;
+    }
+    if (scheduleMode === 'custom' && scheduleCustomDays.length === 0) {
+      setFormErr('Select at least one day for a custom schedule.');
       return;
     }
     setGenerating(true);
@@ -177,6 +234,8 @@ export default function StudyPlan() {
         study_time: studyTime,
         current_level: currentLevel || null,
         weak_areas: weakAreas,
+        schedule_mode: scheduleMode,
+        schedule_custom_days: scheduleMode === 'custom' ? [...scheduleCustomDays].sort((a, b) => a - b) : null,
       };
       const data = await createStudyPlan(payload);
       setPlan(data);
@@ -396,8 +455,17 @@ export default function StudyPlan() {
           <div className="br-card p-4 mb-4">
             <h2 className="h4 fw-bold mb-1">Your Study Plan</h2>
             <p className="text-muted mb-2">
-              {totalDays} day{totalDays === 1 ? '' : 's'} until your exam
+              {totalDays} calendar day{totalDays === 1 ? '' : 's'} until your exam
+              {totalSessions ? ` · ${totalSessions} study session${totalSessions === 1 ? '' : 's'}` : ''}
               {pacingLabel(plan.plan_pacing) ? ` · ${pacingLabel(plan.plan_pacing)}` : ''}
+            </p>
+            <p className="small text-muted mb-2">
+              {plan.schedule_summary ? (
+                <>
+                  <span className="fw-semibold text-body">Schedule:</span> {plan.schedule_summary}{' '}
+                </>
+              ) : null}
+              &quot;Day 1&quot;, &quot;Day 2&quot;, … each mean one study session on that rhythm (not always a calendar day).
             </p>
             <div className="small text-muted mb-2">
               Regenerations left today: <span className="fw-semibold text-body">{plan.regenerations_remaining ?? 0}</span>
@@ -405,7 +473,7 @@ export default function StudyPlan() {
             <div className="d-flex align-items-center gap-3 mb-1">
               <span className="small text-muted">Progress</span>
               <span className="small fw-semibold">
-                {completed} / {totalDays} days
+                {completed} / {totalSessions} sessions
               </span>
             </div>
             <ProgressBar
@@ -416,6 +484,16 @@ export default function StudyPlan() {
               aria-label="Study plan progress"
             />
           </div>
+
+          {plan.plan_summary ? (
+            <div className="br-card p-4 mb-4">
+              <h3 className="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+                <i className="bi bi-journal-text text-br-rose" aria-hidden />
+                Plan summary
+              </h3>
+              <div className="small text-body br-study-plan-summary">{plan.plan_summary}</div>
+            </div>
+          ) : null}
 
           <Row className="g-3 mb-4">
             {parsed.days.length > 0 ? (
@@ -431,7 +509,7 @@ export default function StudyPlan() {
                           id={`day-done-${block.day}`}
                           checked={done}
                           onChange={() => onToggleDay(block.day)}
-                          aria-label={`Mark day ${block.day} complete`}
+                          aria-label={`Mark session ${block.day} complete`}
                         />
                       </div>
                       <ul className="small mb-2 ps-3">
@@ -508,7 +586,38 @@ export default function StudyPlan() {
                 />
               </Form.Group>
               <Form.Group className="mb-3">
-                <Form.Label>Study time per day</Form.Label>
+                <Form.Label>Study rhythm</Form.Label>
+                <Form.Select value={scheduleMode} onChange={(e) => setScheduleMode(e.target.value)}>
+                  {SCHEDULE_MODES.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Form.Select>
+                <Form.Text className="text-muted">
+                  Plans count study sessions from tomorrow through your exam date. Weekends/weekdays modes skip other days.
+                </Form.Text>
+              </Form.Group>
+              {scheduleMode === 'custom' && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Custom days</Form.Label>
+                  <div className="d-flex flex-wrap gap-2">
+                    {ISO_WEEKDAYS.map(({ iso, label }) => (
+                      <Button
+                        key={iso}
+                        type="button"
+                        size="sm"
+                        variant={scheduleCustomDays.includes(iso) ? 'primary' : 'outline-secondary'}
+                        onClick={() => toggleScheduleIso(iso)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                </Form.Group>
+              )}
+              <Form.Group className="mb-3">
+                <Form.Label>Study time per session</Form.Label>
                 <Form.Select value={studyTime} onChange={(e) => setStudyTime(e.target.value)}>
                   {STUDY_TIMES.map((o) => (
                     <option key={o.value} value={o.value}>

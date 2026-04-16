@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StudyPlan;
 use App\Models\User;
 use App\Services\OpenAiStudyPlanService;
+use App\Support\StudyPlanSchedule;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -102,7 +103,26 @@ class StudyPlanController extends Controller
             $plan->exam_date = $examDate;
             $plan->days_remaining = $daysRemaining;
             $plan->plan_pacing = OpenAiStudyPlanService::planPacingKey($daysRemaining);
-            $maxDay = $daysRemaining;
+            $mode = $plan->schedule_mode ?? 'everyday';
+            if (! in_array($mode, StudyPlanSchedule::MODES, true)) {
+                $mode = 'everyday';
+            }
+            $customIso = $mode === 'custom'
+                ? StudyPlanSchedule::normalizeCustomDays($plan->schedule_custom_days ?? [])
+                : null;
+            $sessions = StudyPlanSchedule::countSessions(
+                $examDate,
+                Carbon::today(config('app.timezone')),
+                $mode,
+                $customIso
+            );
+            if ($sessions < 1) {
+                return response()->json([
+                    'message' => 'No study days fall between tomorrow and this exam date for your current schedule. Change the exam date or regenerate the plan with a different schedule.',
+                ], 422);
+            }
+            $plan->study_session_count = $sessions;
+            $maxDay = $this->sessionTotal($plan);
             $done = $plan->completed_days ?? [];
             $plan->completed_days = array_values(array_filter(
                 array_map('intval', is_array($done) ? $done : []),
@@ -111,7 +131,7 @@ class StudyPlanController extends Controller
         }
 
         if (isset($validated['completed_days'])) {
-            $max = (int) $plan->days_remaining;
+            $max = $this->sessionTotal($plan);
             $clean = array_values(array_unique(array_map('intval', $validated['completed_days'])));
             $clean = array_values(array_filter($clean, static fn (int $d) => $d >= 1 && $d <= $max));
             sort($clean);
@@ -177,6 +197,9 @@ class StudyPlanController extends Controller
             'current_level' => ['nullable', 'string', Rule::in(self::LEVELS)],
             'weak_areas' => ['nullable', 'array', 'max:16'],
             'weak_areas.*' => ['string', Rule::in(self::WEAK)],
+            'schedule_mode' => ['required', 'string', Rule::in(StudyPlanSchedule::MODES)],
+            'schedule_custom_days' => ['nullable', 'required_if:schedule_mode,custom', 'array', 'min:1', 'max:7'],
+            'schedule_custom_days.*' => ['integer', Rule::in([1, 2, 3, 4, 5, 6, 7])],
         ]);
 
         try {
@@ -188,6 +211,16 @@ class StudyPlanController extends Controller
         $validated['weak_areas'] = array_values(
             array_intersect(self::WEAK, $validated['weak_areas'] ?? [])
         );
+
+        $mode = $validated['schedule_mode'];
+        $validated['schedule_custom_days'] = $mode === 'custom'
+            ? StudyPlanSchedule::normalizeCustomDays($validated['schedule_custom_days'] ?? [])
+            : null;
+        if ($mode === 'custom' && $validated['schedule_custom_days'] === []) {
+            throw ValidationException::withMessages([
+                'schedule_custom_days' => ['Pick at least one day for a custom schedule.'],
+            ]);
+        }
 
         return $validated;
     }
@@ -204,7 +237,22 @@ class StudyPlanController extends Controller
             'current_level' => ['nullable', 'string', Rule::in(self::LEVELS)],
             'weak_areas' => ['nullable', 'array', 'max:16'],
             'weak_areas.*' => ['string', Rule::in(self::WEAK)],
+            'schedule_mode' => ['sometimes', 'string', Rule::in(StudyPlanSchedule::MODES)],
+            'schedule_custom_days' => ['nullable', 'array', 'min:1', 'max:7'],
+            'schedule_custom_days.*' => ['integer', Rule::in([1, 2, 3, 4, 5, 6, 7])],
         ]);
+
+        $mode = $validated['schedule_mode'] ?? ($existing->schedule_mode ?? 'everyday');
+        if (! in_array($mode, StudyPlanSchedule::MODES, true)) {
+            $mode = 'everyday';
+        }
+        $custom = null;
+        if ($mode === 'custom') {
+            $raw = array_key_exists('schedule_custom_days', $validated)
+                ? ($validated['schedule_custom_days'] ?? [])
+                : ($existing->schedule_custom_days ?? []);
+            $custom = StudyPlanSchedule::normalizeCustomDays(is_array($raw) ? $raw : []);
+        }
 
         $merged = [
             'exam_type' => $validated['exam_type'] ?? $existing->exam_type,
@@ -216,7 +264,15 @@ class StudyPlanController extends Controller
             'weak_areas' => array_key_exists('weak_areas', $validated)
                 ? array_values(array_intersect(self::WEAK, $validated['weak_areas'] ?? []))
                 : ($existing->weak_areas ?? []),
+            'schedule_mode' => $mode,
+            'schedule_custom_days' => $custom,
         ];
+
+        if ($merged['schedule_mode'] === 'custom' && ($merged['schedule_custom_days'] ?? []) === []) {
+            throw ValidationException::withMessages([
+                'schedule_custom_days' => ['Pick at least one day for a custom schedule.'],
+            ]);
+        }
 
         try {
             $this->examWindowOrThrow($merged['exam_date']);
@@ -271,8 +327,32 @@ class StudyPlanController extends Controller
             ], 429);
         }
 
+        $mode = $validated['schedule_mode'] ?? 'everyday';
+        if (! in_array($mode, StudyPlanSchedule::MODES, true)) {
+            $mode = 'everyday';
+        }
+        $customIso = $mode === 'custom'
+            ? StudyPlanSchedule::normalizeCustomDays($validated['schedule_custom_days'] ?? [])
+            : null;
+        if ($mode === 'custom' && $customIso === []) {
+            return response()->json(['message' => 'Pick at least one day for a custom schedule.'], 422);
+        }
+
+        $sessions = StudyPlanSchedule::countSessions(
+            $examDate,
+            Carbon::today(config('app.timezone')),
+            $mode,
+            $customIso
+        );
+        if ($sessions < 1) {
+            return response()->json([
+                'message' => 'No study days fall between tomorrow and your exam for this schedule. Try a different schedule or exam date.',
+            ], 422);
+        }
+
         $pacingKey = OpenAiStudyPlanService::planPacingKey($daysRemaining);
         $pacingLabel = OpenAiStudyPlanService::planPacingLabel($daysRemaining);
+        $scheduleSummary = StudyPlanSchedule::describe($mode, $customIso);
 
         $examLabel = match ($validated['exam_type']) {
             'ielts_general' => 'IELTS General',
@@ -290,15 +370,19 @@ class StudyPlanController extends Controller
         $weak = is_array($validated['weak_areas'] ?? null) ? $validated['weak_areas'] : [];
 
         try {
-            $text = $openAi->generatePlanText(
+            $generated = $openAi->generatePlanText(
                 $examLabel,
                 $daysRemaining,
+                $sessions,
+                $scheduleSummary,
                 $studyLabel,
                 isset($validated['current_level']) ? (string) $validated['current_level'] : null,
                 $weak,
                 $pacingLabel,
                 $user->id,
             );
+            $planSummary = $generated['summary'];
+            $text = $generated['plan_text'];
         } catch (\Throwable $e) {
             Log::warning('Study plan OpenAI failure', [
                 'user_id' => $user->id,
@@ -308,7 +392,7 @@ class StudyPlanController extends Controller
             return response()->json(['message' => 'Unable to generate plan. Try again.'], 503);
         }
 
-        DB::transaction(function () use ($user, $validated, $examDate, $daysRemaining, $weak, $text, $pacingKey, $isReplacement): void {
+        DB::transaction(function () use ($user, $validated, $examDate, $daysRemaining, $sessions, $mode, $customIso, $weak, $planSummary, $text, $pacingKey, $isReplacement): void {
             $plan = StudyPlan::query()->where('user_id', $user->id)->lockForUpdate()->first();
             if ($isReplacement) {
                 abort_unless($plan !== null, 500, 'Study plan could not be updated.');
@@ -322,9 +406,13 @@ class StudyPlanController extends Controller
             $plan->exam_type = $validated['exam_type'];
             $plan->exam_date = $examDate->toDateString();
             $plan->days_remaining = $daysRemaining;
+            $plan->study_session_count = $sessions;
+            $plan->schedule_mode = $mode;
+            $plan->schedule_custom_days = $mode === 'custom' ? $customIso : null;
             $plan->study_time = $validated['study_time'];
             $plan->current_level = $validated['current_level'] ?? null;
             $plan->weak_areas = $weak;
+            $plan->plan_summary = $planSummary !== '' ? $planSummary : null;
             $plan->plan_text = $text;
             $plan->plan_pacing = $pacingKey;
             $plan->completed_days = [];
@@ -339,6 +427,8 @@ class StudyPlanController extends Controller
         Log::info('Study plan generated', [
             'user_id' => $user->id,
             'days_remaining' => $daysRemaining,
+            'study_session_count' => $sessions,
+            'schedule_mode' => $mode,
             'replacement' => $isReplacement,
         ]);
 
@@ -352,17 +442,32 @@ class StudyPlanController extends Controller
     {
         $slots = $this->regenSlotsRemaining($plan);
 
+        $mode = $plan->schedule_mode ?? 'everyday';
+        $custom = $mode === 'custom' ? StudyPlanSchedule::normalizeCustomDays($plan->schedule_custom_days ?? []) : null;
+
         return [
             'plan' => $plan->plan_text,
+            'plan_summary' => $plan->plan_summary !== null && $plan->plan_summary !== '' ? (string) $plan->plan_summary : null,
             'days_remaining' => (int) $plan->days_remaining,
+            'study_session_count' => $this->sessionTotal($plan),
             'exam_date' => $plan->exam_date->toDateString(),
             'exam_type' => $plan->exam_type,
             'study_time' => $plan->study_time,
             'current_level' => $plan->current_level,
             'weak_areas' => $plan->weak_areas ?? [],
+            'schedule_mode' => $mode,
+            'schedule_custom_days' => $custom ?? [],
+            'schedule_summary' => StudyPlanSchedule::describe($mode, $custom),
             'completed_days' => array_values(array_map('intval', $plan->completed_days ?? [])),
             'plan_pacing' => $plan->plan_pacing,
             'regenerations_remaining' => $slots,
         ];
+    }
+
+    private function sessionTotal(StudyPlan $plan): int
+    {
+        $n = (int) ($plan->study_session_count ?? 0);
+
+        return $n > 0 ? $n : max(1, (int) $plan->days_remaining);
     }
 }
