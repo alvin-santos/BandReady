@@ -80,6 +80,14 @@ class User extends Authenticatable implements MustVerifyEmail
             'speaking_ai_suspension_notice' => $suspended ? (string) ($this->speaking_ai_suspension_notice ?? '') : null,
             'google_linked' => $this->google_id !== null,
             'google_avatar' => $this->google_avatar,
+            'study_plan_max_exam_days' => $this->isSubscribed()
+                ? max(1, min(90, (int) config('openai.study_plan_max_days_pro', 30)))
+                : max(1, min(90, (int) config('openai.study_plan_max_days_free', 21))),
+            'study_plan_free_generations_used' => (int) ($this->study_plan_free_generations_used ?? 0),
+            'study_plan_free_generations_limit' => $this->isSubscribed() ? null : max(1, (int) config('openai.study_plan_free_generation_limit', 3)),
+            'study_plan_free_generations_remaining' => $this->isSubscribed()
+                ? null
+                : max(0, max(1, (int) config('openai.study_plan_free_generation_limit', 3)) - (int) ($this->study_plan_free_generations_used ?? 0)),
         ];
     }
 
@@ -107,6 +115,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'progress_reminder_sent_at' => 'datetime',
             'speaking_ai_suspended_at' => 'datetime',
             'tts_disabled_voice_keys' => 'array',
+            'study_plan_free_generations_used' => 'integer',
         ];
     }
 }

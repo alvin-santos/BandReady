@@ -86,6 +86,10 @@ export default function MainLayout() {
                   <i className="bi bi-info-circle" aria-hidden />
                   Why BandReady
                 </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/study-plan" className={navItem}>
+                  <i className="bi bi-calendar-check" aria-hidden />
+                  Study plan
+                </NavDropdown.Item>
                 <NavDropdown.Item as={Link} to="/contact" className={navItem}>
                   <i className="bi bi-envelope" aria-hidden />
                   Contact
@@ -124,12 +128,10 @@ export default function MainLayout() {
                       <i className="bi bi-bullseye" aria-hidden />
                       Mistakes
                     </NavDropdown.Item>
-                    {isSubscribed && (
-                      <NavDropdown.Item as={Link} to="/study-plan" className={navItem}>
-                        <i className="bi bi-calendar-check" aria-hidden />
-                        Study plan
-                      </NavDropdown.Item>
-                    )}
+                    <NavDropdown.Item as={Link} to="/study-plan" className={navItem}>
+                      <i className="bi bi-calendar-check" aria-hidden />
+                      Study plan
+                    </NavDropdown.Item>
                     {isAdmin && (
                       <>
                         <NavDropdown.Divider />

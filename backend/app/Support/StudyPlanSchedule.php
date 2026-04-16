@@ -14,25 +14,36 @@ final class StudyPlanSchedule
     }
 
     /**
+     * Calendar date (Y-m-d) for each study session in order: session "Day 1" = index 0.
+     *
      * @param  list<int>|null  $customIso  Carbon dayOfWeekIso: 1 = Monday … 7 = Sunday
+     * @return list<string>
      */
-    public static function countSessions(Carbon $examDateStart, Carbon $todayInTz, string $mode, ?array $customIso): int
+    public static function sessionDates(Carbon $examDateStart, Carbon $todayInTz, string $mode, ?array $customIso): array
     {
         $from = self::firstStudyDate($todayInTz);
         $to = $examDateStart->copy()->startOfDay();
         if ($from->gt($to)) {
-            return 0;
+            return [];
         }
 
-        $n = 0;
+        $dates = [];
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
             $iso = (int) $d->dayOfWeekIso;
             if (self::isStudyDay($iso, $mode, $customIso)) {
-                $n++;
+                $dates[] = $d->toDateString();
             }
         }
 
-        return $n;
+        return $dates;
+    }
+
+    /**
+     * @param  list<int>|null  $customIso
+     */
+    public static function countSessions(Carbon $examDateStart, Carbon $todayInTz, string $mode, ?array $customIso): int
+    {
+        return count(self::sessionDates($examDateStart, $todayInTz, $mode, $customIso));
     }
 
     /**

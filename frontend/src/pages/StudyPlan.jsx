@@ -20,6 +20,7 @@ import {
   updateStudyPlan,
 } from '../utils/studyPlanApi.js';
 import { parseStudyPlanText } from '../utils/parseStudyPlanText.js';
+import StudyPlanExamDatePicker from '../components/StudyPlanExamDatePicker.jsx';
 
 const EXAM_TYPES = [
   { value: 'ielts_general', label: 'IELTS General' },
@@ -65,16 +66,21 @@ const ISO_WEEKDAYS = [
   { iso: 7, label: 'Sun' },
 ];
 
-function tomorrowISODate() {
+/** Tomorrow in the user’s local calendar (matches exam date picker bounds). */
+function tomorrowISODateLocal() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  d.setHours(0, 0, 0, 0);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function maxExamISODate() {
-  const d = new Date();
-  d.setDate(d.getDate() + 90);
-  return d.toISOString().slice(0, 10);
+/** @param {Record<string, unknown>|null|undefined} data */
+function splitPlanApiPayload(data) {
+  if (!data || typeof data !== 'object') {
+    return { planFields: {}, limits: undefined };
+  }
+  const { limits, ...planFields } = data;
+  return { planFields, limits };
 }
 
 function daysBetweenTodayAnd(isoDate) {
@@ -83,6 +89,23 @@ function daysBetweenTodayAnd(isoDate) {
   start.setHours(12, 0, 0, 0);
   const ms = end.getTime() - start.getTime();
   return Math.max(0, Math.round(ms / 86400000));
+}
+
+/**
+ * @param {string | undefined} iso YYYY-MM-DD
+ * @returns {{ weekday: string, dateLine: string } | null}
+ */
+function sessionCalendarParts(iso) {
+  if (!iso || typeof iso !== 'string') {
+    return null;
+  }
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+  const dateLine = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return { weekday, dateLine };
 }
 
 function pacingLabel(key) {
@@ -103,17 +126,19 @@ function pacingLabel(key) {
 export default function StudyPlan() {
   const { user, isSubscribed } = useAuth();
   const [plan, setPlan] = useState(null);
+  const [limits, setLimits] = useState(null);
   const [loadErr, setLoadErr] = useState('');
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState('');
   const [showEditDate, setShowEditDate] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [formErr, setFormErr] = useState('');
   const [actionErr, setActionErr] = useState('');
 
   const [examType, setExamType] = useState('ielts_general');
-  const [examDate, setExamDate] = useState(tomorrowISODate());
+  const [examDate, setExamDate] = useState(tomorrowISODateLocal());
   const [studyTime, setStudyTime] = useState('1h');
   const [currentLevel, setCurrentLevel] = useState('');
   const [weakAreas, setWeakAreas] = useState([]);
@@ -124,25 +149,22 @@ export default function StudyPlan() {
   const [editExamDate, setEditExamDate] = useState('');
 
   const load = useCallback(async () => {
-    if (!isSubscribed) {
-      setLoading(false);
-      setPlan(null);
-      return;
-    }
     setLoadErr('');
     try {
-      const p = await fetchStudyPlan();
-      setPlan(p);
+      const { study_plan: sp, limits: lim } = await fetchStudyPlan();
+      setPlan(sp);
+      setLimits(lim && typeof lim === 'object' ? lim : null);
     } catch (e) {
       const msg = e?.response?.data?.message || 'Could not load your study plan.';
       setLoadErr(msg);
       if (e?.response?.status === 403) {
+        setUpgradeMessage(msg);
         setShowUpgrade(true);
       }
     } finally {
       setLoading(false);
     }
-  }, [isSubscribed]);
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -158,7 +180,7 @@ export default function StudyPlan() {
     }
     if (plan) {
       setExamType(plan.exam_type || 'ielts_general');
-      setExamDate(plan.exam_date || tomorrowISODate());
+      setExamDate(plan.exam_date || tomorrowISODateLocal());
       setStudyTime(plan.study_time || '1h');
       setCurrentLevel(plan.current_level || '');
       setWeakAreas(Array.isArray(plan.weak_areas) ? [...plan.weak_areas] : []);
@@ -176,6 +198,11 @@ export default function StudyPlan() {
 
   const parsed = useMemo(() => parseStudyPlanText(plan?.plan ?? ''), [plan]);
 
+  const maxExamDays = limits?.max_exam_days ?? (isSubscribed ? 30 : 21);
+  const freeQuotaExhausted = Boolean(
+    limits && limits.is_pro === false && Number(limits.free_generations_remaining) === 0
+  );
+
   const totalDays = plan?.days_remaining ?? 0;
   const totalSessions = plan?.study_session_count ?? plan?.days_remaining ?? 0;
   const completed = plan?.completed_days?.length ?? 0;
@@ -192,8 +219,8 @@ export default function StudyPlan() {
       return 'Please choose a future exam date.';
     }
     const ahead = daysBetweenTodayAnd(examDate);
-    if (ahead > 90) {
-      return 'Exam date must be within 90 days.';
+    if (ahead > maxExamDays) {
+      return `Exam date must be within ${maxExamDays} days for your account. Upgrade to Pro for a longer window.`;
     }
     if (ahead < 1) {
       return 'Exam date must be at least one day from today.';
@@ -238,18 +265,29 @@ export default function StudyPlan() {
         schedule_custom_days: scheduleMode === 'custom' ? [...scheduleCustomDays].sort((a, b) => a - b) : null,
       };
       const data = await createStudyPlan(payload);
-      setPlan(data);
+      const { planFields, limits: lim } = splitPlanApiPayload(data);
+      if (lim) {
+        setLimits(lim);
+      }
+      setPlan(planFields);
       setShowCreate(false);
     } catch (e) {
       const st = e?.response?.status;
       const msg = e?.response?.data?.message;
+      const code = e?.response?.data?.code;
       if (st === 403) {
+        setUpgradeMessage(
+          msg ||
+            (code === 'study_plan_free_quota'
+              ? 'You have used all free study plan generations. Upgrade to Pro for unlimited plans.'
+              : 'This action is not available on your current plan.')
+        );
         setShowUpgrade(true);
         setShowCreate(false);
       } else if (st === 503) {
         setFormErr('Unable to generate plan. Try again.');
       } else if (st === 429) {
-        setFormErr(msg || 'Daily regenerate limit reached. Try again tomorrow.');
+        setFormErr(msg || 'Too many requests. Try again later.');
       } else {
         setFormErr(msg || 'Something went wrong. Try again.');
       }
@@ -266,16 +304,27 @@ export default function StudyPlan() {
     setActionErr('');
     try {
       const data = await regenerateStudyPlan({});
-      setPlan(data);
+      const { planFields, limits: lim } = splitPlanApiPayload(data);
+      if (lim) {
+        setLimits(lim);
+      }
+      setPlan(planFields);
     } catch (e) {
       const st = e?.response?.status;
       const msg = e?.response?.data?.message;
+      const code = e?.response?.data?.code;
       if (st === 403) {
+        setUpgradeMessage(
+          msg ||
+            (code === 'study_plan_free_quota'
+              ? 'You have used all free study plan generations. Upgrade to Pro for unlimited plans.'
+              : 'This action is not available on your current plan.')
+        );
         setShowUpgrade(true);
       } else if (st === 503) {
         setActionErr('Unable to generate plan. Try again.');
       } else if (st === 429) {
-        setActionErr(msg || 'You can regenerate up to 5 times per day.');
+        setActionErr(msg || 'Too many requests. Try again later.');
       } else {
         setActionErr(msg || 'Could not regenerate.');
       }
@@ -290,7 +339,10 @@ export default function StudyPlan() {
     }
     setActionErr('');
     try {
-      await deleteStudyPlan();
+      const data = await deleteStudyPlan();
+      if (data?.limits) {
+        setLimits(data.limits);
+      }
       setPlan(null);
     } catch (e) {
       setActionErr(e?.response?.data?.message || 'Could not delete plan.');
@@ -298,7 +350,7 @@ export default function StudyPlan() {
   };
 
   const openEditDate = () => {
-    setEditExamDate(plan?.exam_date ?? tomorrowISODate());
+    setEditExamDate(plan?.exam_date ?? tomorrowISODateLocal());
     setShowEditDate(true);
     setFormErr('');
   };
@@ -316,14 +368,18 @@ export default function StudyPlan() {
       return;
     }
     const ahead = daysBetweenTodayAnd(editExamDate);
-    if (ahead > 90 || ahead < 1) {
-      setFormErr('Exam date must be between 1 and 90 days from today.');
+    if (ahead > maxExamDays || ahead < 1) {
+      setFormErr(`Exam date must be between 1 and ${maxExamDays} days from today for your account.`);
       return;
     }
     setFormErr('');
     try {
       const data = await updateStudyPlan({ exam_date: editExamDate });
-      setPlan(data);
+      const { planFields, limits: lim } = splitPlanApiPayload(data);
+      if (lim) {
+        setLimits(lim);
+      }
+      setPlan(planFields);
       setShowEditDate(false);
     } catch (e) {
       setFormErr(e?.response?.data?.message || 'Could not update date.');
@@ -341,49 +397,15 @@ export default function StudyPlan() {
     const next = [...set].sort((a, b) => a - b);
     try {
       const data = await updateStudyPlan({ completed_days: next });
-      setPlan(data);
+      const { planFields, limits: lim } = splitPlanApiPayload(data);
+      if (lim) {
+        setLimits(lim);
+      }
+      setPlan(planFields);
     } catch (e) {
       setActionErr(e?.response?.data?.message || 'Could not update progress.');
     }
   };
-
-  if (!user) {
-    return (
-      <Container className="py-5">
-        <p className="mb-0">
-          Please <Link to="/login">log in</Link> to use the Smart Exam Planner.
-        </p>
-      </Container>
-    );
-  }
-
-  if (!user.email_verified) {
-    return (
-      <Container className="py-5">
-        <p className="mb-0">
-          Verify your email to access Pro tools. <Link to="/verify-email">Continue</Link>
-        </p>
-      </Container>
-    );
-  }
-
-  if (!isSubscribed) {
-    return (
-      <Container className="py-4">
-        <div className="br-card p-4 mx-auto" style={{ maxWidth: 520 }}>
-          <h1 className="h4 fw-bold d-flex align-items-center gap-2 mb-2">
-            <i className="bi bi-calendar-check text-br-rose" aria-hidden />
-            Smart Exam Planner
-          </h1>
-          <p className="text-muted mb-3">This feature is available for Pro users only.</p>
-          <Button as={Link} to="/subscription" variant="primary" className="d-inline-flex align-items-center gap-2">
-            <i className="bi bi-star-fill" aria-hidden />
-            Upgrade to Pro
-          </Button>
-        </div>
-      </Container>
-    );
-  }
 
   if (loading) {
     return (
@@ -410,7 +432,14 @@ export default function StudyPlan() {
                 <i className="bi bi-pencil" aria-hidden />
                 Edit exam date
               </Button>
-              <Button variant="outline-secondary" size="sm" onClick={onRegenerate} className="d-inline-flex align-items-center gap-1">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={onRegenerate}
+                disabled={freeQuotaExhausted}
+                title={freeQuotaExhausted ? 'Free plan generations are used up. Upgrade to Pro to regenerate.' : undefined}
+                className="d-inline-flex align-items-center gap-1"
+              >
                 <i className="bi bi-arrow-repeat" aria-hidden />
                 Regenerate
               </Button>
@@ -420,7 +449,14 @@ export default function StudyPlan() {
               </Button>
             </>
           )}
-          <Button variant="primary" size="sm" onClick={() => setShowCreate(true)} className="d-inline-flex align-items-center gap-1">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowCreate(true)}
+            disabled={freeQuotaExhausted}
+            title={freeQuotaExhausted ? 'Free plan generations are used up. Upgrade to Pro for more.' : undefined}
+            className="d-inline-flex align-items-center gap-1"
+          >
             <i className="bi bi-magic" aria-hidden />
             {plan ? 'New plan' : 'Create your study plan'}
           </Button>
@@ -442,11 +478,26 @@ export default function StudyPlan() {
 
       {!plan && !loadErr && (
         <div className="br-card p-4 text-center">
-          <p className="mb-3">You do not have a study plan yet. Create one with your exam date and preferences.</p>
-          <Button variant="primary" onClick={() => setShowCreate(true)} className="d-inline-flex align-items-center gap-2">
-            <i className="bi bi-magic" aria-hidden />
-            Create your study plan
-          </Button>
+          {freeQuotaExhausted ? (
+            <>
+              <p className="mb-3">
+                You have used all free Smart Exam Planner generations. Upgrade to BandReady Pro for unlimited plans and a
+                longer exam date window.
+              </p>
+              <Button as={Link} to="/subscription" variant="primary" className="d-inline-flex align-items-center gap-2">
+                <i className="bi bi-star-fill" aria-hidden />
+                View Pro
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="mb-3">You do not have a study plan yet. Create one with your exam date and preferences.</p>
+              <Button variant="primary" onClick={() => setShowCreate(true)} className="d-inline-flex align-items-center gap-2">
+                <i className="bi bi-magic" aria-hidden />
+                Create your study plan
+              </Button>
+            </>
+          )}
         </div>
       )}
 
@@ -467,9 +518,22 @@ export default function StudyPlan() {
               ) : null}
               &quot;Day 1&quot;, &quot;Day 2&quot;, … each mean one study session on that rhythm (not always a calendar day).
             </p>
-            <div className="small text-muted mb-2">
-              Regenerations left today: <span className="fw-semibold text-body">{plan.regenerations_remaining ?? 0}</span>
-            </div>
+            {limits && (
+              <div className="small text-muted mb-2">
+                <span className="fw-semibold text-body">Exam window:</span> up to {limits.max_exam_days} days from today
+                {limits.is_pro ? (
+                  <span> (Pro)</span>
+                ) : (
+                  <>
+                    {' '}
+                    · Free plan generations:{' '}
+                    <span className="fw-semibold text-body">
+                      {limits.free_generations_remaining ?? 0} / {limits.free_generation_limit ?? '—'} left
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
             <div className="d-flex align-items-center gap-3 mb-1">
               <span className="small text-muted">Progress</span>
               <span className="small fw-semibold">
@@ -499,11 +563,21 @@ export default function StudyPlan() {
             {parsed.days.length > 0 ? (
               parsed.days.map((block) => {
                 const done = (plan.completed_days || []).includes(block.day);
+                const sessionIso = Array.isArray(plan.session_dates) ? plan.session_dates[block.day - 1] : undefined;
+                const cal = sessionCalendarParts(sessionIso);
                 return (
                   <Col md={6} xl={4} key={block.day}>
                     <div className={`br-card p-3 h-100 ${done ? 'opacity-75 border-success' : ''}`}>
                       <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-                        <h3 className="h6 fw-bold mb-0">Day {block.day}</h3>
+                        <div className="flex-grow-1 min-w-0">
+                          <h3 className="h6 fw-bold mb-0">Day {block.day}</h3>
+                          {cal ? (
+                            <div className="small text-muted mt-1">
+                              <div className="fw-semibold text-body">{cal.weekday}</div>
+                              <div>{cal.dateLine}</div>
+                            </div>
+                          ) : null}
+                        </div>
                         <Form.Check
                           type="checkbox"
                           id={`day-done-${block.day}`}
@@ -563,99 +637,120 @@ export default function StudyPlan() {
                 onGenerate();
               }}
             >
-              {formErr && <Alert variant="danger">{formErr}</Alert>}
-              <Form.Group className="mb-3">
-                <Form.Label>Exam type</Form.Label>
-                <Form.Select value={examType} onChange={(e) => setExamType(e.target.value)}>
-                  {EXAM_TYPES.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Exam date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={examDate}
-                  min={tomorrowISODate()}
-                  max={maxExamISODate()}
-                  onChange={(e) => setExamDate(e.target.value)}
-                  required
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Study rhythm</Form.Label>
-                <Form.Select value={scheduleMode} onChange={(e) => setScheduleMode(e.target.value)}>
-                  {SCHEDULE_MODES.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Form.Select>
-                <Form.Text className="text-muted">
-                  Plans count study sessions from tomorrow through your exam date. Weekends/weekdays modes skip other days.
-                </Form.Text>
-              </Form.Group>
-              {scheduleMode === 'custom' && (
-                <Form.Group className="mb-3">
-                  <Form.Label>Custom days</Form.Label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {ISO_WEEKDAYS.map(({ iso, label }) => (
-                      <Button
-                        key={iso}
-                        type="button"
-                        size="sm"
-                        variant={scheduleCustomDays.includes(iso) ? 'primary' : 'outline-secondary'}
-                        onClick={() => toggleScheduleIso(iso)}
-                      >
-                        {label}
-                      </Button>
-                    ))}
-                  </div>
-                </Form.Group>
-              )}
-              <Form.Group className="mb-3">
-                <Form.Label>Study time per session</Form.Label>
-                <Form.Select value={studyTime} onChange={(e) => setStudyTime(e.target.value)}>
-                  {STUDY_TIMES.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Current level (optional)</Form.Label>
-                <Form.Select value={currentLevel} onChange={(e) => setCurrentLevel(e.target.value)}>
-                  <option value="">—</option>
-                  {LEVELS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Weak areas</Form.Label>
-                <div className="d-flex flex-wrap gap-3">
-                  {WEAK.map((w) => (
-                    <Form.Check
-                      key={w.value}
-                      type="checkbox"
-                      id={`weak-${w.value}`}
-                      label={w.label}
-                      checked={weakAreas.includes(w.value)}
-                      onChange={() => toggleWeak(w.value)}
+              <Row className="g-4 align-items-start">
+                <Col xs={12} lg={8}>
+                  {formErr && <Alert variant="danger">{formErr}</Alert>}
+                  <Form.Group className="mb-3">
+                    <Form.Label>Exam type</Form.Label>
+                    <Form.Select value={examType} onChange={(e) => setExamType(e.target.value)}>
+                      {EXAM_TYPES.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label htmlFor="study-plan-create-exam-date">Exam date</Form.Label>
+                    <StudyPlanExamDatePicker
+                      id="study-plan-create-exam-date"
+                      value={examDate}
+                      onChange={setExamDate}
+                      maxExamDays={maxExamDays}
+                      required
+                      showProUpgradeHint={Boolean(limits && limits.is_pro === false)}
                     />
-                  ))}
-                </div>
-              </Form.Group>
-              <Button type="submit" variant="primary" className="d-inline-flex align-items-center gap-2">
-                <i className="bi bi-magic" aria-hidden />
-                Generate My Plan
-              </Button>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Study rhythm</Form.Label>
+                    <Form.Select value={scheduleMode} onChange={(e) => setScheduleMode(e.target.value)}>
+                      {SCHEDULE_MODES.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text className="text-muted">
+                      Plans count study sessions from tomorrow through your exam date. Weekends/weekdays modes skip other days.
+                    </Form.Text>
+                  </Form.Group>
+                  {scheduleMode === 'custom' && (
+                    <Form.Group className="mb-3">
+                      <Form.Label>Custom days</Form.Label>
+                      <div className="d-flex flex-wrap gap-2">
+                        {ISO_WEEKDAYS.map(({ iso, label }) => (
+                          <Button
+                            key={iso}
+                            type="button"
+                            size="sm"
+                            variant={scheduleCustomDays.includes(iso) ? 'primary' : 'outline-secondary'}
+                            onClick={() => toggleScheduleIso(iso)}
+                          >
+                            {label}
+                          </Button>
+                        ))}
+                      </div>
+                    </Form.Group>
+                  )}
+                  <Form.Group className="mb-3">
+                    <Form.Label>Study time per session</Form.Label>
+                    <Form.Select value={studyTime} onChange={(e) => setStudyTime(e.target.value)}>
+                      {STUDY_TIMES.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Current level (optional)</Form.Label>
+                    <Form.Select value={currentLevel} onChange={(e) => setCurrentLevel(e.target.value)}>
+                      <option value="">—</option>
+                      {LEVELS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Weak areas</Form.Label>
+                    <div className="d-flex flex-wrap gap-3">
+                      {WEAK.map((w) => (
+                        <Form.Check
+                          key={w.value}
+                          type="checkbox"
+                          id={`weak-${w.value}`}
+                          label={w.label}
+                          checked={weakAreas.includes(w.value)}
+                          onChange={() => toggleWeak(w.value)}
+                        />
+                      ))}
+                    </div>
+                  </Form.Group>
+                  <Button type="submit" variant="primary" disabled={freeQuotaExhausted} className="d-inline-flex align-items-center gap-2">
+                    <i className="bi bi-magic" aria-hidden />
+                    Generate My Plan
+                  </Button>
+                </Col>
+                <Col xs={12} lg={4}>
+                  <aside className="br-study-plan-create-bandie rounded-3 border border-br-rose border-opacity-25 p-3 p-xl-4 bg-body-secondary text-center mx-auto ms-lg-auto">
+                    <div className="br-study-plan-create-bandie-img-wrap mx-auto mb-3">
+                      <img
+                        src="/bandie.png"
+                        alt="Bandie"
+                        className="br-study-plan-create-bandie-img"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="fw-semibold text-br-rose mb-2">Bandie</div>
+                    <p className="small text-muted mb-0 text-lg-start">
+                      Fill in your exam and study rhythm — I&apos;ll turn it into a session-by-session plan you can follow until
+                      test day.
+                    </p>
+                  </aside>
+                </Col>
+              </Row>
             </Form>
           )}
         </Modal.Body>
@@ -668,13 +763,13 @@ export default function StudyPlan() {
         <Modal.Body>
           {formErr && <Alert variant="danger">{formErr}</Alert>}
           <Form.Group>
-            <Form.Label>Exam date</Form.Label>
-            <Form.Control
-              type="date"
+            <Form.Label htmlFor="study-plan-edit-exam-date">Exam date</Form.Label>
+            <StudyPlanExamDatePicker
+              id="study-plan-edit-exam-date"
               value={editExamDate}
-              min={tomorrowISODate()}
-              max={maxExamISODate()}
-              onChange={(e) => setEditExamDate(e.target.value)}
+              onChange={setEditExamDate}
+              maxExamDays={maxExamDays}
+              showProUpgradeHint={Boolean(limits && limits.is_pro === false)}
             />
           </Form.Group>
         </Modal.Body>
@@ -698,9 +793,12 @@ export default function StudyPlan() {
 
       <Modal show={showUpgrade} onHide={() => setShowUpgrade(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Pro feature</Modal.Title>
+          <Modal.Title>Upgrade to Pro</Modal.Title>
         </Modal.Header>
-        <Modal.Body>This feature is available for Pro users only.</Modal.Body>
+        <Modal.Body>
+          {upgradeMessage ||
+            'BandReady Pro includes unlimited Smart Exam Planner generations and a longer exam date window.'}
+        </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowUpgrade(false)}>
             Close

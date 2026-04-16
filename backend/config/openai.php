@@ -26,6 +26,15 @@ return [
 
     'study_plan_max_completion_tokens' => (int) env('OPENAI_STUDY_PLAN_MAX_COMPLETION_TOKENS', 8192),
 
+    /** Smart Exam Planner: max calendar days from today to exam date (Pro). */
+    'study_plan_max_days_pro' => (int) env('STUDY_PLAN_MAX_DAYS_PRO', 30),
+
+    /** Smart Exam Planner: max calendar days from today to exam date (free / non-Pro). */
+    'study_plan_max_days_free' => (int) env('STUDY_PLAN_MAX_DAYS_FREE', 21),
+
+    /** Smart Exam Planner: lifetime successful AI plan generations for non-Pro users (create + regenerate). */
+    'study_plan_free_generation_limit' => (int) env('STUDY_PLAN_FREE_GENERATION_LIMIT', 3),
+
     /** Whisper model for speaking transcription. */
     'whisper_model' => env('OPENAI_WHISPER_MODEL', 'whisper-1'),
 

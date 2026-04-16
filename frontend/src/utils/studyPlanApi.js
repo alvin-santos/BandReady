@@ -2,9 +2,12 @@ import { api } from '../api/client.js';
 
 const GENERATE_TIMEOUT_MS = 180000;
 
+/**
+ * @returns {Promise<{ study_plan: object | null, limits: object }>}
+ */
 export async function fetchStudyPlan() {
   const { data } = await api.get('/study-plan');
-  return data.study_plan;
+  return { study_plan: data.study_plan ?? null, limits: data.limits ?? {} };
 }
 
 export async function createStudyPlan(payload) {

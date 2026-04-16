@@ -28,25 +28,26 @@ class StudyPlanController extends Controller
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user instanceof User || ! $user->isSubscribed()) {
-            return response()->json(['message' => 'This feature is available for Pro users only.'], 403);
+        if (! $user instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $plan = StudyPlan::query()->where('user_id', $user->id)->first();
 
         return response()->json([
             'study_plan' => $plan ? $this->serializePlan($plan) : null,
+            'limits' => $this->studyPlanLimitsForUser($user),
         ]);
     }
 
     public function store(Request $request, OpenAiStudyPlanService $openAi): JsonResponse
     {
         $user = $request->user();
-        if (! $user instanceof User || ! $user->isSubscribed()) {
-            return response()->json(['message' => 'This feature is available for Pro users only.'], 403);
+        if (! $user instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $validated = $this->validateCreatePayload($request);
+        $validated = $this->validateCreatePayload($request, $user);
         $existing = StudyPlan::query()->where('user_id', $user->id)->first();
 
         return $this->generateAndSave($user, $openAi, $validated, $existing !== null);
@@ -55,8 +56,8 @@ class StudyPlanController extends Controller
     public function regenerate(Request $request, OpenAiStudyPlanService $openAi): JsonResponse
     {
         $user = $request->user();
-        if (! $user instanceof User || ! $user->isSubscribed()) {
-            return response()->json(['message' => 'This feature is available for Pro users only.'], 403);
+        if (! $user instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $existing = StudyPlan::query()->where('user_id', $user->id)->first();
@@ -64,7 +65,7 @@ class StudyPlanController extends Controller
             return response()->json(['message' => 'No study plan found. Create one first.'], 404);
         }
 
-        $validated = $this->validateRegeneratePayload($request, $existing);
+        $validated = $this->validateRegeneratePayload($request, $existing, $user);
 
         return $this->generateAndSave($user, $openAi, $validated, true);
     }
@@ -72,8 +73,8 @@ class StudyPlanController extends Controller
     public function update(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user instanceof User || ! $user->isSubscribed()) {
-            return response()->json(['message' => 'This feature is available for Pro users only.'], 403);
+        if (! $user instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $plan = StudyPlan::query()->where('user_id', $user->id)->first();
@@ -93,7 +94,10 @@ class StudyPlanController extends Controller
 
         if (isset($validated['exam_date'])) {
             try {
-                ['exam' => $examDate, 'days_remaining' => $daysRemaining] = $this->examWindowOrThrow($validated['exam_date']);
+                ['exam' => $examDate, 'days_remaining' => $daysRemaining] = $this->examWindowOrThrow(
+                    $validated['exam_date'],
+                    $this->maxExamCalendarDays($user)
+                );
             } catch (ValidationException $e) {
                 return response()->json([
                     'message' => $e->validator->errors()->first('exam_date') ?? 'Please choose a future exam date.',
@@ -110,18 +114,20 @@ class StudyPlanController extends Controller
             $customIso = $mode === 'custom'
                 ? StudyPlanSchedule::normalizeCustomDays($plan->schedule_custom_days ?? [])
                 : null;
-            $sessions = StudyPlanSchedule::countSessions(
+            $sessionDateList = StudyPlanSchedule::sessionDates(
                 $examDate,
                 Carbon::today(config('app.timezone')),
                 $mode,
                 $customIso
             );
+            $sessions = count($sessionDateList);
             if ($sessions < 1) {
                 return response()->json([
                     'message' => 'No study days fall between tomorrow and this exam date for your current schedule. Change the exam date or regenerate the plan with a different schedule.',
                 ], 422);
             }
             $plan->study_session_count = $sessions;
+            $plan->session_dates = $sessionDateList;
             $maxDay = $this->sessionTotal($plan);
             $done = $plan->completed_days ?? [];
             $plan->completed_days = array_values(array_filter(
@@ -142,26 +148,84 @@ class StudyPlanController extends Controller
 
         Log::info('Study plan updated', ['user_id' => $user->id, 'fields' => array_keys($validated)]);
 
-        return response()->json($this->serializePlan($plan));
+        return response()->json(array_merge(
+            $this->serializePlan($plan->fresh(['user'])),
+            ['limits' => $this->studyPlanLimitsForUser($user->fresh())]
+        ));
     }
 
     public function destroy(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user instanceof User || ! $user->isSubscribed()) {
-            return response()->json(['message' => 'This feature is available for Pro users only.'], 403);
+        if (! $user instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $deleted = StudyPlan::query()->where('user_id', $user->id)->delete();
         Log::info('Study plan deleted', ['user_id' => $user->id, 'deleted' => $deleted > 0]);
 
-        return response()->json(['ok' => true]);
+        return response()->json(array_merge(
+            ['ok' => true],
+            ['limits' => $this->studyPlanLimitsForUser($user->fresh())]
+        ));
+    }
+
+    private function maxExamCalendarDays(User $user): int
+    {
+        $n = $user->isSubscribed()
+            ? (int) config('openai.study_plan_max_days_pro', 30)
+            : (int) config('openai.study_plan_max_days_free', 21);
+
+        return max(1, min(90, $n));
+    }
+
+    private function freeGenerationLimit(): int
+    {
+        return max(1, min(20, (int) config('openai.study_plan_free_generation_limit', 3)));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function studyPlanLimitsForUser(User $user): array
+    {
+        $pro = $user->isSubscribed();
+        $maxDays = $this->maxExamCalendarDays($user);
+        $limit = $this->freeGenerationLimit();
+        $used = (int) ($user->study_plan_free_generations_used ?? 0);
+
+        return [
+            'max_exam_days' => $maxDays,
+            'is_pro' => $pro,
+            'free_generation_limit' => $pro ? null : $limit,
+            'free_generations_used' => $pro ? null : $used,
+            'free_generations_remaining' => $pro ? null : max(0, $limit - $used),
+        ];
+    }
+
+    /**
+     * @return JsonResponse|null
+     */
+    private function freeStudyPlanQuotaBlockedResponse(User $user): ?JsonResponse
+    {
+        if ($user->isSubscribed()) {
+            return null;
+        }
+        $user->refresh();
+        if ((int) $user->study_plan_free_generations_used >= $this->freeGenerationLimit()) {
+            return response()->json([
+                'message' => 'You have used all free Smart Exam Planner generations. Upgrade to BandReady Pro for unlimited plans and a longer exam window (up to '.(int) config('openai.study_plan_max_days_pro', 30).' days).',
+                'code' => 'study_plan_free_quota',
+            ], 403);
+        }
+
+        return null;
     }
 
     /**
      * @return array{exam: Carbon, days_remaining: int}
      */
-    private function examWindowOrThrow(string $dateStr): array
+    private function examWindowOrThrow(string $dateStr, int $maxCalendarDays): array
     {
         $examDate = Carbon::parse($dateStr, config('app.timezone'))->startOfDay();
         $today = Carbon::today(config('app.timezone'));
@@ -176,9 +240,9 @@ class StudyPlanController extends Controller
                 'exam_date' => ['Please choose a future exam date.'],
             ]);
         }
-        if ($daysRemaining > 90) {
+        if ($daysRemaining > $maxCalendarDays) {
             throw ValidationException::withMessages([
-                'exam_date' => ['Exam date must be within 90 days.'],
+                'exam_date' => ['Exam date is too far out for your plan. Pick a date within '.$maxCalendarDays.' days, or upgrade to Pro for a longer window.'],
             ]);
         }
 
@@ -188,7 +252,7 @@ class StudyPlanController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validateCreatePayload(Request $request): array
+    private function validateCreatePayload(Request $request, User $user): array
     {
         $validated = $request->validate([
             'exam_type' => ['required', 'string', Rule::in(self::EXAM_TYPES)],
@@ -203,7 +267,7 @@ class StudyPlanController extends Controller
         ]);
 
         try {
-            $this->examWindowOrThrow($validated['exam_date']);
+            $this->examWindowOrThrow($validated['exam_date'], $this->maxExamCalendarDays($user));
         } catch (ValidationException $e) {
             throw $e;
         }
@@ -228,7 +292,7 @@ class StudyPlanController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validateRegeneratePayload(Request $request, StudyPlan $existing): array
+    private function validateRegeneratePayload(Request $request, StudyPlan $existing, User $user): array
     {
         $validated = $request->validate([
             'exam_type' => ['sometimes', 'string', Rule::in(self::EXAM_TYPES)],
@@ -275,7 +339,7 @@ class StudyPlanController extends Controller
         }
 
         try {
-            $this->examWindowOrThrow($merged['exam_date']);
+            $this->examWindowOrThrow($merged['exam_date'], $this->maxExamCalendarDays($user));
         } catch (ValidationException $e) {
             throw $e;
         }
@@ -283,36 +347,14 @@ class StudyPlanController extends Controller
         return $merged;
     }
 
-    private function regenSlotsRemaining(StudyPlan $model): int
-    {
-        $today = Carbon::today(config('app.timezone'));
-        $win = $model->regenerate_window_date;
-        if ($win === null || ! $win->isSameDay($today)) {
-            return 5;
-        }
-
-        return max(0, 5 - (int) $model->regenerate_count_today);
-    }
-
-    private function bumpRegenerateCount(StudyPlan $model): void
-    {
-        $today = Carbon::today(config('app.timezone'));
-        $win = $model->regenerate_window_date;
-        if ($win === null || ! $win->isSameDay($today)) {
-            $model->regenerate_count_today = 1;
-            $model->regenerate_window_date = $today;
-        } else {
-            $model->regenerate_count_today = min(255, (int) $model->regenerate_count_today + 1);
-        }
-    }
-
     /**
      * @param  array<string, mixed>  $validated
      */
     private function generateAndSave(User $user, OpenAiStudyPlanService $openAi, array $validated, bool $isReplacement): JsonResponse
     {
+        $maxDays = $this->maxExamCalendarDays($user);
         try {
-            ['exam' => $examDate, 'days_remaining' => $daysRemaining] = $this->examWindowOrThrow($validated['exam_date']);
+            ['exam' => $examDate, 'days_remaining' => $daysRemaining] = $this->examWindowOrThrow($validated['exam_date'], $maxDays);
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => $e->validator->errors()->first('exam_date') ?? 'Invalid exam date.',
@@ -320,11 +362,9 @@ class StudyPlanController extends Controller
             ], 422);
         }
 
-        $planRow = StudyPlan::query()->where('user_id', $user->id)->first();
-        if ($isReplacement && $planRow !== null && $this->regenSlotsRemaining($planRow) < 1) {
-            return response()->json([
-                'message' => 'You can regenerate your study plan up to 5 times per day. Try again tomorrow.',
-            ], 429);
+        $blocked = $this->freeStudyPlanQuotaBlockedResponse($user);
+        if ($blocked !== null) {
+            return $blocked;
         }
 
         $mode = $validated['schedule_mode'] ?? 'everyday';
@@ -338,12 +378,13 @@ class StudyPlanController extends Controller
             return response()->json(['message' => 'Pick at least one day for a custom schedule.'], 422);
         }
 
-        $sessions = StudyPlanSchedule::countSessions(
+        $sessionDateList = StudyPlanSchedule::sessionDates(
             $examDate,
             Carbon::today(config('app.timezone')),
             $mode,
             $customIso
         );
+        $sessions = count($sessionDateList);
         if ($sessions < 1) {
             return response()->json([
                 'message' => 'No study days fall between tomorrow and your exam for this schedule. Try a different schedule or exam date.',
@@ -392,12 +433,10 @@ class StudyPlanController extends Controller
             return response()->json(['message' => 'Unable to generate plan. Try again.'], 503);
         }
 
-        DB::transaction(function () use ($user, $validated, $examDate, $daysRemaining, $sessions, $mode, $customIso, $weak, $planSummary, $text, $pacingKey, $isReplacement): void {
+        DB::transaction(function () use ($user, $validated, $examDate, $daysRemaining, $sessions, $sessionDateList, $mode, $customIso, $weak, $planSummary, $text, $pacingKey, $isReplacement): void {
             $plan = StudyPlan::query()->where('user_id', $user->id)->lockForUpdate()->first();
             if ($isReplacement) {
                 abort_unless($plan !== null, 500, 'Study plan could not be updated.');
-                abort_unless($this->regenSlotsRemaining($plan) >= 1, 429, 'You can regenerate your study plan up to 5 times per day. Try again tomorrow.');
-                $this->bumpRegenerateCount($plan);
             } else {
                 $plan ??= new StudyPlan(['user_id' => $user->id]);
             }
@@ -407,6 +446,7 @@ class StudyPlanController extends Controller
             $plan->exam_date = $examDate->toDateString();
             $plan->days_remaining = $daysRemaining;
             $plan->study_session_count = $sessions;
+            $plan->session_dates = $sessionDateList;
             $plan->schedule_mode = $mode;
             $plan->schedule_custom_days = $mode === 'custom' ? $customIso : null;
             $plan->study_time = $validated['study_time'];
@@ -417,6 +457,10 @@ class StudyPlanController extends Controller
             $plan->plan_pacing = $pacingKey;
             $plan->completed_days = [];
             $plan->save();
+
+            if (! $user->isSubscribed()) {
+                User::query()->whereKey($user->id)->increment('study_plan_free_generations_used');
+            }
         });
 
         $fresh = StudyPlan::query()->where('user_id', $user->id)->first();
@@ -432,7 +476,10 @@ class StudyPlanController extends Controller
             'replacement' => $isReplacement,
         ]);
 
-        return response()->json($this->serializePlan($fresh));
+        return response()->json(array_merge(
+            $this->serializePlan($fresh->loadMissing('user')),
+            ['limits' => $this->studyPlanLimitsForUser($user->fresh())]
+        ));
     }
 
     /**
@@ -440,7 +487,7 @@ class StudyPlanController extends Controller
      */
     private function serializePlan(StudyPlan $plan): array
     {
-        $slots = $this->regenSlotsRemaining($plan);
+        $plan->loadMissing('user');
 
         $mode = $plan->schedule_mode ?? 'everyday';
         $custom = $mode === 'custom' ? StudyPlanSchedule::normalizeCustomDays($plan->schedule_custom_days ?? []) : null;
@@ -458,9 +505,9 @@ class StudyPlanController extends Controller
             'schedule_mode' => $mode,
             'schedule_custom_days' => $custom ?? [],
             'schedule_summary' => StudyPlanSchedule::describe($mode, $custom),
+            'session_dates' => $this->resolveSessionDatesForPlan($plan),
             'completed_days' => array_values(array_map('intval', $plan->completed_days ?? [])),
             'plan_pacing' => $plan->plan_pacing,
-            'regenerations_remaining' => $slots,
         ];
     }
 
@@ -469,5 +516,31 @@ class StudyPlanController extends Controller
         $n = (int) ($plan->study_session_count ?? 0);
 
         return $n > 0 ? $n : max(1, (int) $plan->days_remaining);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveSessionDatesForPlan(StudyPlan $plan): array
+    {
+        $stored = $plan->session_dates ?? null;
+        if (is_array($stored) && $stored !== []) {
+            return array_values(array_map(static fn ($d) => (string) $d, $stored));
+        }
+
+        $mode = $plan->schedule_mode ?? 'everyday';
+        if (! in_array($mode, StudyPlanSchedule::MODES, true)) {
+            $mode = 'everyday';
+        }
+        $custom = $mode === 'custom'
+            ? StudyPlanSchedule::normalizeCustomDays($plan->schedule_custom_days ?? [])
+            : null;
+
+        return StudyPlanSchedule::sessionDates(
+            $plan->exam_date,
+            Carbon::today(config('app.timezone')),
+            $mode,
+            $custom
+        );
     }
 }

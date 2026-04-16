@@ -18,6 +18,7 @@ class StudyPlan extends Model
         'schedule_mode',
         'schedule_custom_days',
         'study_session_count',
+        'session_dates',
         'plan_text',
         'plan_summary',
         'completed_days',
@@ -35,6 +36,7 @@ class StudyPlan extends Model
             'exam_date' => 'date',
             'weak_areas' => 'array',
             'schedule_custom_days' => 'array',
+            'session_dates' => 'array',
             'completed_days' => 'array',
             'regenerate_window_date' => 'date',
         ];
