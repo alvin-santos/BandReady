@@ -64,6 +64,11 @@ const EXACT = {
     title: 'Mistakes hub',
     description: 'Review questions you missed and strengthen weak areas with BandReady.',
   },
+  '/ai-interview-practice': {
+    title: 'AI Interview Practice (Bandie)',
+    description:
+      'Practice job and English speaking interviews with BandReady’s Bandie AI: voice or text, timed sessions, transcript, and feedback.',
+  },
   '/dashboard': {
     title: 'Dashboard',
     description: 'Your BandReady dashboard: active attempts, history, and quick links to practice.',

@@ -44,6 +44,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(StudyPlan::class);
     }
 
+    public function interviewPracticeSessions(): HasMany
+    {
+        return $this->hasMany(InterviewPracticeSession::class);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

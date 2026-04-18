@@ -240,7 +240,7 @@ export function speakDialogueScript(script, voicesList, lang, onComplete, disabl
  * @param {() => void} onComplete
  * @param {Set<string>} [disabledVoiceKeys]
  * @param {{ current: SpeechSynthesisVoice | null }} stableVoiceRef first call picks a voice and stores it here; set `.current = null` to pick again (e.g. new question)
- * @param {{ chunkMaxChars?: number }} [options] smaller `chunkMaxChars` (e.g. 140) queues more short TTS utterances — helps weak connections / Chromium stalls.
+ * @param {{ chunkMaxChars?: number; rate?: number }} [options] smaller `chunkMaxChars` (e.g. 140) queues more short TTS utterances — helps weak connections / Chromium stalls. `rate` is SpeechSynthesisUtterance.rate (typically 0.5–2).
  */
 export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, disabledVoiceKeys, stableVoiceRef, options) {
   const plain = String(text ?? '').trim();
@@ -272,6 +272,9 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
       ? options.chunkMaxChars
       : TTS_CHUNK_MAX_CHARS;
 
+  const rate =
+    typeof options?.rate === 'number' && options.rate >= 0.5 && options.rate <= 2 ? options.rate : 1;
+
   const chunks = splitTextIntoTtsChunks(plain, chunkCap)
     .map((x) => x.trim())
     .filter(Boolean);
@@ -289,7 +292,7 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
     } else {
       u.lang = lang;
     }
-    u.rate = 1;
+    u.rate = rate;
     const isLast = ci === chunks.length - 1;
     if (isLast) {
       u.onend = () => onComplete?.();

@@ -41,5 +41,29 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('study-plan-openai', function (Request $request) {
             return Limit::perHour(8)->by((string) ($request->user()?->id ?? $request->ip()));
         });
+
+        RateLimiter::for('interview-practice-status', function (Request $request) {
+            return Limit::perMinute(30)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
+
+        RateLimiter::for('interview-practice-start', function (Request $request) {
+            return Limit::perMinute(6)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
+
+        RateLimiter::for('interview-practice-read', function (Request $request) {
+            return Limit::perMinute(60)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
+
+        RateLimiter::for('interview-practice-transcribe', function (Request $request) {
+            return Limit::perMinute(30)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
+
+        RateLimiter::for('interview-practice-reply', function (Request $request) {
+            return Limit::perMinute(40)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
+
+        RateLimiter::for('interview-practice-end', function (Request $request) {
+            return Limit::perMinute(20)->by((string) ($request->user()?->id ?? $request->ip()));
+        });
     }
 }

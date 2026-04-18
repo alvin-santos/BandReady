@@ -42,6 +42,7 @@ import AdminOpenAiQuestionnairePrompts from './pages/AdminOpenAiQuestionnairePro
 import AdminDatabaseBackups from './pages/AdminDatabaseBackups.jsx';
 import AdminBandieTutor from './pages/AdminBandieTutor.jsx';
 import AdminExamNav from './pages/AdminExamNav.jsx';
+import InterviewPracticePage from './pages/InterviewPracticePage.jsx';
 
 function Private({ children }) {
   const { user, loading } = useAuth();
@@ -155,6 +156,14 @@ export const router = createBrowserRouter([
         element: (
           <PrivateVerified>
             <TtsVoicesSettingsPage variant="user" />
+          </PrivateVerified>
+        ),
+      },
+      {
+        path: 'ai-interview-practice',
+        element: (
+          <PrivateVerified>
+            <InterviewPracticePage />
           </PrivateVerified>
         ),
       },

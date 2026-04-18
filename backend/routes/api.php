@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\DownloadablePublicController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\ForumController;
 use App\Http\Controllers\Api\IeltsSpeakingAiController;
+use App\Http\Controllers\Api\InterviewPracticeController;
 use App\Http\Controllers\Api\MistakesHubController;
 use App\Http\Controllers\Api\PublicRankingController;
 use App\Http\Controllers\Api\ResultController;
@@ -124,6 +125,25 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/forum/threads/{id}/replies', [ForumController::class, 'storeReply'])
         ->whereNumber('id')
         ->middleware('throttle:40,1');
+
+    Route::middleware('throttle:interview-practice-status')->group(function () {
+        Route::get('/interview-practice/status', [InterviewPracticeController::class, 'status']);
+    });
+    Route::middleware('throttle:interview-practice-start')->group(function () {
+        Route::post('/interview-practice/start', [InterviewPracticeController::class, 'start']);
+    });
+    Route::middleware('throttle:interview-practice-read')->group(function () {
+        Route::get('/interview-practice/{id}', [InterviewPracticeController::class, 'show'])->whereNumber('id');
+    });
+    Route::middleware('throttle:interview-practice-transcribe')->group(function () {
+        Route::post('/interview-practice/{id}/transcribe', [InterviewPracticeController::class, 'transcribe'])->whereNumber('id');
+    });
+    Route::middleware('throttle:interview-practice-reply')->group(function () {
+        Route::post('/interview-practice/{id}/reply', [InterviewPracticeController::class, 'reply'])->whereNumber('id');
+    });
+    Route::middleware('throttle:interview-practice-end')->group(function () {
+        Route::patch('/interview-practice/{id}/end', [InterviewPracticeController::class, 'end'])->whereNumber('id');
+    });
 });
 
 Route::middleware(['auth:sanctum', 'verified', 'admin'])->prefix('admin')->group(function () {

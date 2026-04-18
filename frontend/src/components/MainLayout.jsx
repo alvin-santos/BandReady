@@ -90,6 +90,10 @@ export default function MainLayout() {
                   <i className="bi bi-calendar-check" aria-hidden />
                   Study plan
                 </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/ai-interview-practice" className={navItem}>
+                  <i className="bi bi-mic" aria-hidden />
+                  AI Interview Practice
+                </NavDropdown.Item>
                 <NavDropdown.Item as={Link} to="/contact" className={navItem}>
                   <i className="bi bi-envelope" aria-hidden />
                   Contact
