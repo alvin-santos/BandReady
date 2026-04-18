@@ -19,9 +19,8 @@ import { speakWithStableEnglishVoice } from '../utils/ttsSpeak.js';
 import { getTtsDisabledVoiceKeysSet } from '../utils/ttsVoiceSettingsCache.js';
 
 const SILENCE_SESSION_MS = 15_000;
-const SILENCE_STOP_RECORD_MS = 1200;
-const RMS_THRESHOLD = 0.018;
-const RECORD_MAX_SEC = 120;
+/** Hard cap per answer — user normally taps Stop & send before this. */
+const RECORD_MAX_SECONDS = 120;
 
 const INTERVIEW_TYPES = [
   { value: 'general_job', label: 'General Job Interview' },
@@ -64,6 +63,13 @@ function buildTranscriptDownload(messages) {
     .join('\n\n');
 }
 
+function formatClock(totalSec) {
+  const n = Math.max(0, Math.floor(Number(totalSec) || 0));
+  const m = Math.floor(n / 60);
+  const s = n % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 export default function InterviewPracticePage() {
   const { isSubscribed, refresh: refreshAuth } = useAuth();
   const { setTutorSection } = useBandieTutor();
@@ -88,6 +94,8 @@ export default function InterviewPracticePage() {
   const [speechRate, setSpeechRate] = useState(1);
   const [textFallback, setTextFallback] = useState('');
   const [replaying, setReplaying] = useState(false);
+  const [recordElapsedSec, setRecordElapsedSec] = useState(0);
+  const [infoBanner, setInfoBanner] = useState('');
 
   const voicesRef = useRef([]);
   const bandieVoiceRef = useRef(null);
@@ -98,9 +106,8 @@ export default function InterviewPracticePage() {
   const silenceSessionTimerRef = useRef(null);
   const timerAnchorRef = useRef(null);
   const tickRef = useRef(null);
-  const audioCtxRef = useRef(null);
-  const silenceRafRef = useRef(null);
   const discardRecordingRef = useRef(false);
+  const maxDurationStopRef = useRef(false);
 
   const sessionId = session?.id;
 
@@ -220,7 +227,7 @@ export default function InterviewPracticePage() {
       if (muted || !text?.trim() || typeof window === 'undefined' || !window.speechSynthesis) {
         return;
       }
-    const disabled = await getTtsDisabledVoiceKeysSet();
+      const disabled = await getTtsDisabledVoiceKeysSet();
       const plain = String(text).replace(/\n+/g, ' ').trim();
       await new Promise((resolve) => {
         speakWithStableEnglishVoice(
@@ -242,19 +249,19 @@ export default function InterviewPracticePage() {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
-    if (audioCtxRef.current) {
-      try {
-        audioCtxRef.current.close();
-      } catch {
-        /* ignore */
-      }
-      audioCtxRef.current = null;
-    }
-    if (silenceRafRef.current) {
-      cancelAnimationFrame(silenceRafRef.current);
-      silenceRafRef.current = null;
-    }
   }, []);
+
+  useEffect(() => {
+    if (!recording) {
+      setRecordElapsedSec(0);
+      return;
+    }
+    setRecordElapsedSec(0);
+    const id = setInterval(() => {
+      setRecordElapsedSec((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [recording]);
 
   useEffect(() => {
     return () => {
@@ -269,6 +276,7 @@ export default function InterviewPracticePage() {
 
   const startInterview = async () => {
     setError('');
+    setInfoBanner('');
     setStarting(true);
     bandieVoiceRef.current = null;
     try {
@@ -304,6 +312,7 @@ export default function InterviewPracticePage() {
     window.speechSynthesis?.cancel();
     setTyping(true);
     setError('');
+    setInfoBanner('');
     setLiveTranscript('');
     try {
       const { data } = await api.post(`/interview-practice/${sessionId}/reply`, { text });
@@ -394,6 +403,8 @@ export default function InterviewPracticePage() {
     clearSilenceSessionTimer();
     window.speechSynthesis?.cancel();
     setError('');
+    setInfoBanner('');
+    maxDurationStopRef.current = false;
     discardRecordingRef.current = false;
     if (!navigator.mediaDevices?.getUserMedia) {
       setError('Microphone recording is not supported in this browser.');
@@ -410,52 +421,12 @@ export default function InterviewPracticePage() {
           : new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
 
-      const ctx = new AudioContext();
-      audioCtxRef.current = ctx;
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
-      const buf = new Uint8Array(analyser.fftSize);
-      let quietSince = 0;
-
-      const checkSilence = () => {
-        if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') {
-          return;
-        }
-        analyser.getByteTimeDomainData(buf);
-        let sum = 0;
-        for (let i = 0; i < buf.length; i += 1) {
-          const v = (buf[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / buf.length);
-        const now = performance.now();
-        if (rms < RMS_THRESHOLD) {
-          if (!quietSince) {
-            quietSince = now;
-          } else if (now - quietSince >= SILENCE_STOP_RECORD_MS) {
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-              mediaRecorderRef.current.stop();
-            }
-            return;
-          }
-        } else {
-          quietSince = 0;
-        }
-        silenceRafRef.current = requestAnimationFrame(checkSilence);
-      };
-
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
       mr.onstop = () => {
-        if (silenceRafRef.current) {
-          cancelAnimationFrame(silenceRafRef.current);
-          silenceRafRef.current = null;
-        }
         stopTracks();
         const blob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' });
         chunksRef.current = [];
@@ -470,17 +441,22 @@ export default function InterviewPracticePage() {
           armSilenceSessionTimer();
           return;
         }
+        if (maxDurationStopRef.current) {
+          maxDurationStopRef.current = false;
+          const capMin = RECORD_MAX_SECONDS / 60;
+          setInfoBanner(`Recording reached the ${capMin}-minute limit; your answer was sent automatically.`);
+        }
         void uploadRecording(blob, mimeType || 'audio/webm');
       };
 
       mr.start(200);
       setRecording(true);
-      silenceRafRef.current = requestAnimationFrame(checkSilence);
       recordMaxTimerRef.current = setTimeout(() => {
+        maxDurationStopRef.current = true;
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
         }
-      }, RECORD_MAX_SEC * 1000);
+      }, RECORD_MAX_SECONDS * 1000);
     } catch {
       setError('Could not access the microphone. Check permissions or use text input below.');
       armSilenceSessionTimer();
@@ -496,6 +472,7 @@ export default function InterviewPracticePage() {
 
   const stopInterviewClick = async () => {
     discardRecordingRef.current = true;
+    maxDurationStopRef.current = false;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
@@ -537,6 +514,7 @@ export default function InterviewPracticePage() {
     setSession(null);
     setMessages([]);
     setError('');
+    setInfoBanner('');
     setLiveTranscript('');
     bandieVoiceRef.current = null;
     void loadStatus();
@@ -660,7 +638,11 @@ export default function InterviewPracticePage() {
                   </div>
                   <div className="d-flex flex-wrap align-items-center gap-2">
                     <Badge bg={recording ? 'danger' : 'secondary'} className="rounded-pill">
-                      {recording ? 'Listening…' : typing ? 'Bandie is typing…' : 'Ready'}
+                      {recording
+                        ? `Recording ${formatClock(recordElapsedSec)} / ${formatClock(RECORD_MAX_SECONDS)}`
+                        : typing
+                          ? 'Bandie is typing…'
+                          : 'Your turn'}
                     </Badge>
                     <Badge bg="dark" className="rounded-pill">
                       {Math.floor(remainingSec / 60)}:{String(remainingSec % 60).padStart(2, '0')} left
@@ -677,8 +659,8 @@ export default function InterviewPracticePage() {
                   label={`${userTurns}/${maxTurns} answers`}
                 />
                 <div className="small text-muted mb-3">
-                  Turns: {userTurns} / {maxTurns} · After Bandie speaks, you have {SILENCE_SESSION_MS / 1000}s to start
-                  answering before the session times out for silence.
+                  Turns: {userTurns} / {maxTurns} · After Bandie speaks, tap <strong>Start recording</strong> within{' '}
+                  {SILENCE_SESSION_MS / 1000}s or the session may end for silence.
                 </div>
 
                 <div
@@ -728,6 +710,12 @@ export default function InterviewPracticePage() {
                   </Alert>
                 ) : null}
 
+                {infoBanner ? (
+                  <Alert variant="info" className="py-2 small mb-2">
+                    {infoBanner}
+                  </Alert>
+                ) : null}
+
                 <Row className="g-3 align-items-end mb-3">
                   <Col md={4}>
                     <Form.Check
@@ -750,24 +738,27 @@ export default function InterviewPracticePage() {
                   </Col>
                 </Row>
 
+                <p className="small text-muted mb-2">
+                  Tap <strong>Start recording</strong> when you are ready to answer. Tap <strong>Stop & send</strong>{' '}
+                  when you are finished (up to {RECORD_MAX_SECONDS / 60} minutes). Pauses while you think will not stop
+                  the recording.
+                </p>
                 <div className="d-flex flex-wrap gap-2 mb-3">
-                  <Button
-                    variant={recording ? 'warning' : 'primary'}
-                    onClick={() => (recording ? stopRecordingManual() : void startRecording())}
-                    disabled={typing || !session?.is_active}
-                  >
-                    {recording ? (
-                      <>
-                        <i className="bi bi-stop-fill me-1" aria-hidden />
-                        Stop & send
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-mic-fill me-1" aria-hidden />
-                        Answer with microphone
-                      </>
-                    )}
-                  </Button>
+                  {!recording ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => void startRecording()}
+                      disabled={typing || !session?.is_active}
+                    >
+                      <i className="bi bi-mic-fill me-1" aria-hidden />
+                      Start recording
+                    </Button>
+                  ) : (
+                    <Button variant="warning" onClick={() => stopRecordingManual()} disabled={typing}>
+                      <i className="bi bi-stop-fill me-1" aria-hidden />
+                      Stop & send
+                    </Button>
+                  )}
                 </div>
 
                 <Form.Group>
@@ -806,18 +797,54 @@ export default function InterviewPracticePage() {
                   You answered <strong>{userTurns}</strong> question{userTurns === 1 ? '' : 's'} · Duration{' '}
                   <strong>{session.duration_seconds ?? '—'}</strong>s
                 </p>
-                {summaryFeedback?.summary ? (
+                {summaryFeedback?.feedback_source === 'unavailable' ? (
+                  <Alert variant="warning" className="small">
+                    Practice scores could not be loaded from OpenAI (API or network). Your transcript is still saved; try
+                    again later or confirm the server has a valid OPENAI_API_KEY.
+                  </Alert>
+                ) : null}
+
+                {summaryFeedback?.feedback_source === 'openai' ? (
+                  <p className="small text-muted mb-2">
+                    Overall and category scores below are <strong>generated by OpenAI</strong> from your session
+                    transcript (speech-to-text). For practice only — not an official employer or exam score
+                    {summaryFeedback.model_used ? (
+                      <>
+                        {' '}
+                        · Model: <code className="small">{summaryFeedback.model_used}</code>
+                      </>
+                    ) : null}
+                    .
+                  </p>
+                ) : null}
+
+                {summaryFeedback &&
+                (summaryFeedback.summary ||
+                  summaryFeedback.overall_score_0_100 != null ||
+                  summaryFeedback.feedback_source) ? (
                   <Alert variant="info" className="small">
-                    <div className="fw-semibold mb-1">
-                      AI feedback {summaryFeedback.overall_score_0_100 != null ? `(${summaryFeedback.overall_score_0_100}/100)` : ''}
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                      <span className="fw-semibold">OpenAI assessment</span>
+                      {typeof summaryFeedback.overall_score_0_100 === 'number' ? (
+                        <Badge bg="primary">Overall {summaryFeedback.overall_score_0_100}/100</Badge>
+                      ) : null}
+                      {typeof summaryFeedback.relevance_0_100 === 'number' ? (
+                        <Badge bg="secondary">Relevance {summaryFeedback.relevance_0_100}/100</Badge>
+                      ) : null}
+                      {typeof summaryFeedback.communication_0_100 === 'number' ? (
+                        <Badge bg="secondary">Communication {summaryFeedback.communication_0_100}/100</Badge>
+                      ) : null}
+                      {typeof summaryFeedback.substance_0_100 === 'number' ? (
+                        <Badge bg="secondary">Substance {summaryFeedback.substance_0_100}/100</Badge>
+                      ) : null}
                     </div>
-                    {summaryFeedback.summary}
+                    {summaryFeedback.summary ? <div>{summaryFeedback.summary}</div> : null}
                     {summaryFeedback.speaking_pace_note ? (
                       <div className="mt-2 text-muted">{summaryFeedback.speaking_pace_note}</div>
                     ) : null}
                   </Alert>
                 ) : (
-                  <p className="text-muted small">Feedback will appear here when available.</p>
+                  <p className="text-muted small">Feedback will appear here when the session ends.</p>
                 )}
 
                 {Array.isArray(summaryFeedback?.strengths) && summaryFeedback.strengths.length > 0 ? (

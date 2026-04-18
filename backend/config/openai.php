@@ -59,6 +59,13 @@ return [
 
     'speaking_feedback_timeout' => (int) env('OPENAI_SPEAKING_TIMEOUT', 90),
 
+    /** Interview practice end-of-session scoring (defaults to speaking_model). */
+    'interview_feedback_model' => env('OPENAI_INTERVIEW_FEEDBACK_MODEL', env('OPENAI_SPEAKING_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini'))),
+
+    'interview_feedback_timeout' => (int) env('OPENAI_INTERVIEW_FEEDBACK_TIMEOUT', 120),
+
+    'interview_feedback_max_completion_tokens' => (int) env('OPENAI_INTERVIEW_FEEDBACK_MAX_COMPLETION_TOKENS', 2048),
+
     /** Small classifier for abusive / disruptive speaking text (per-turn and rubric JSON). */
     'speaking_moderation_model' => env('OPENAI_SPEAKING_MODERATION_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')),
 
