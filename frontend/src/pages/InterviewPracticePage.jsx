@@ -149,6 +149,8 @@ export default function InterviewPracticePage() {
   const phaseRef = useRef('setup');
   const recordingRef = useRef(false);
   const scheduleHandsFreeAfterReplyRef = useRef(false);
+  /** Latest speakBandie — endSession is declared above speakBandie in this file. */
+  const speakBandieRef = useRef(async () => {});
 
   const sessionId = session?.id;
 
@@ -265,6 +267,13 @@ export default function InterviewPracticePage() {
           with_feedback: true,
         });
         applyPayload(data);
+        if (reason === 'time_limit' || reason === 'silence_timeout') {
+          const msgs = data?.messages ?? [];
+          const lastAi = [...msgs].reverse().find((m) => m.role === 'ai');
+          if (lastAi?.body?.trim()) {
+            await speakBandieRef.current(lastAi.body);
+          }
+        }
         setPhase('summary');
       } catch (e) {
         setError(e.response?.data?.message || 'Could not end session.');
@@ -320,6 +329,8 @@ export default function InterviewPracticePage() {
     },
     [muted, speechRate, interviewerVoiceKey]
   );
+
+  speakBandieRef.current = speakBandie;
 
   const stopTracks = useCallback(() => {
     if (streamRef.current) {

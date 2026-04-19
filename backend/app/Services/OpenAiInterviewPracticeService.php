@@ -57,10 +57,15 @@ class OpenAiInterviewPracticeService
             ? 'Target job role: '.trim((string) $session->custom_role).'.'
             : '';
 
-        $remaining = max(0, (int) $session->max_turns - (int) $session->user_turns);
-        $wrapHint = $remaining <= 1
-            ? 'This may be the final candidate reply — politely close the mock interview after your question (thank them, no new topic).'
-            : 'Ask exactly ONE clear question (or one tightly related compound question). No bullet lists.';
+        // user_turns is already incremented for the candidate reply we are answering — remaining answers they may still send.
+        $turnsLeftForCandidate = max(0, (int) $session->max_turns - (int) $session->user_turns);
+        if ($turnsLeftForCandidate === 0) {
+            $wrapHint = 'The candidate has **no** answers left in this session. **End the interview now**: thank them briefly, react in one short phrase to their last reply if natural, and wish them well. **Do not ask any question** — they cannot send another answer.';
+        } elseif ($turnsLeftForCandidate === 1) {
+            $wrapHint = 'Ask **exactly one** clear final question — it is the **only** question they can still answer in this session. After their answer the session will end; do not imply further rounds.';
+        } else {
+            $wrapHint = 'Ask exactly ONE clear question (or one tightly related compound question). No bullet lists.';
+        }
 
         $system = <<<SYS
 You are **Bandie**, BandReady's AI voice interview coach. In this mode you are strictly the **human interviewer** (not a tutor explaining the app).

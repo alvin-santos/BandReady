@@ -340,6 +340,22 @@ class InterviewPracticeController extends Controller
         ];
         $status = $statusMap[$reason] ?? 'stopped_user';
 
+        if ($session->isActive() && ($status === 'time_limit' || $status === 'silence_timeout')) {
+            $closing = $status === 'silence_timeout'
+                ? InterviewPracticePrompts::closingMessageSilence()
+                : InterviewPracticePrompts::closingMessageTimeLimit();
+            DB::transaction(function () use ($session, $closing) {
+                InterviewPracticeMessage::query()->create([
+                    'interview_practice_session_id' => $session->id,
+                    'role' => 'ai',
+                    'body' => $closing,
+                    'created_at' => now(),
+                ]);
+                $session->update(['last_ai_at' => now()]);
+            });
+            $session->refresh();
+        }
+
         $session->update([
             'status' => $status,
             'ended_at' => now(),
@@ -367,12 +383,36 @@ class InterviewPracticeController extends Controller
 
         $elapsed = $session->started_at ? $session->started_at->diffInSeconds(now()) : 0;
         if ($elapsed >= (int) $session->max_duration_seconds) {
-            $session->update(['status' => 'time_limit', 'ended_at' => now()]);
+            DB::transaction(function () use ($session) {
+                InterviewPracticeMessage::query()->create([
+                    'interview_practice_session_id' => $session->id,
+                    'role' => 'ai',
+                    'body' => InterviewPracticePrompts::closingMessageTimeLimit(),
+                    'created_at' => now(),
+                ]);
+                $session->update([
+                    'last_ai_at' => now(),
+                    'status' => 'time_limit',
+                    'ended_at' => now(),
+                ]);
+            });
 
             return;
         }
 
         if ((int) $session->user_turns >= (int) $session->max_turns) {
+            $last = $session->messages()->orderByDesc('id')->first();
+            if ($last && $last->role === 'ai' && str_ends_with(rtrim($last->body), '?')) {
+                DB::transaction(function () use ($session) {
+                    InterviewPracticeMessage::query()->create([
+                        'interview_practice_session_id' => $session->id,
+                        'role' => 'ai',
+                        'body' => InterviewPracticePrompts::closingMessageTurnLimitFallback(),
+                        'created_at' => now(),
+                    ]);
+                    $session->update(['last_ai_at' => now()]);
+                });
+            }
             $session->update(['status' => 'turn_limit', 'ended_at' => now()]);
         }
     }

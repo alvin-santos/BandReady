@@ -49,4 +49,22 @@ final class InterviewPracticePrompts
             default => 'Normal: balanced depth, natural follow-ups, professional but fair.',
         };
     }
+
+    /** Canned interviewer line when the session hits the clock (no LLM call). */
+    public static function closingMessageTimeLimit(): string
+    {
+        return "That's all the time we have for this practice session. Thank you for your answers — we'll wrap up the mock interview here. Best of luck with your preparation.";
+    }
+
+    /** Canned interviewer line when the session ends from extended silence. */
+    public static function closingMessageSilence(): string
+    {
+        return "I'll wrap up here since we haven't continued. Thank you for practising today — this mock interview is concluded. All the best going forward.";
+    }
+
+    /** Fallback when the model still ends with a question after the final candidate answer. */
+    public static function closingMessageTurnLimitFallback(): string
+    {
+        return "We've reached the last answer for this practice session, so I'll stop here. Thank you for your time today — this mock interview is now concluded. Best of luck with your preparation.";
+    }
 }
