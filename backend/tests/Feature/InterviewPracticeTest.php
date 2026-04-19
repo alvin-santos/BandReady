@@ -70,4 +70,34 @@ class InterviewPracticeTest extends TestCase
             'role' => 'ai',
         ]);
     }
+
+    public function test_start_quick_duration_preset_caps_session_fields(): void
+    {
+        config(['openai.api_key' => 'sk-test']);
+
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode(['message' => 'Quick hello.']),
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        Sanctum::actingAs($user);
+
+        $res = $this->postJson('/api/interview-practice/start', [
+            'interview_type' => 'general_job',
+            'difficulty' => 'normal',
+            'duration_preset' => 'quick',
+        ]);
+
+        $res->assertOk()
+            ->assertJsonPath('session.max_duration_seconds', 180)
+            ->assertJsonPath('session.max_turns', 3);
+    }
 }

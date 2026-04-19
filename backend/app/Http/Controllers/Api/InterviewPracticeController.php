@@ -50,11 +50,13 @@ class InterviewPracticeController extends Controller
 
         $types = config('interview_practice.interview_types', []);
         $diffs = config('interview_practice.difficulties', []);
+        $presetKeys = array_merge(array_keys(config('interview_practice.duration_presets', [])), ['full']);
 
         $data = $request->validate([
             'interview_type' => 'required|string|in:'.implode(',', $types),
             'difficulty' => 'required|string|in:'.implode(',', $diffs),
             'custom_role' => 'nullable|string|max:'.(int) config('interview_practice.max_custom_role_chars', 200),
+            'duration_preset' => 'sometimes|nullable|string|in:'.implode(',', $presetKeys),
         ]);
 
         if ($data['interview_type'] === 'custom_role') {
@@ -81,8 +83,18 @@ class InterviewPracticeController extends Controller
             ], 422);
         }
 
+        $preset = (string) ($data['duration_preset'] ?? 'full');
+        $maxDurationSeconds = (int) $limits['max_duration_seconds'];
+        $maxTurns = (int) $limits['max_turns'];
+        if ($preset !== 'full') {
+            $presetCfg = config('interview_practice.duration_presets.'.$preset);
+            if (is_array($presetCfg)) {
+                $maxDurationSeconds = min($maxDurationSeconds, (int) ($presetCfg['max_duration_seconds'] ?? $maxDurationSeconds));
+                $maxTurns = min($maxTurns, (int) ($presetCfg['max_turns'] ?? $maxTurns));
+            }
+        }
         try {
-            $session = DB::transaction(function () use ($user, $data, $limits) {
+            $session = DB::transaction(function () use ($user, $data, $maxDurationSeconds, $maxTurns) {
                 InterviewPracticeSession::query()
                     ->where('user_id', $user->id)
                     ->where('status', 'active')
@@ -100,8 +112,8 @@ class InterviewPracticeController extends Controller
                         : null,
                     'status' => 'active',
                     'started_at' => now(),
-                    'max_duration_seconds' => (int) $limits['max_duration_seconds'],
-                    'max_turns' => (int) $limits['max_turns'],
+                    'max_duration_seconds' => $maxDurationSeconds,
+                    'max_turns' => $maxTurns,
                     'user_turns' => 0,
                     'empty_streak' => 0,
                     'last_ai_at' => null,

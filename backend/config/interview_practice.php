@@ -17,6 +17,17 @@ return [
 
     'difficulties' => ['easy', 'normal', 'hard'],
 
+    /**
+     * Session length presets (capped by the user's plan limits at start).
+     * "full" uses plan max_duration_seconds and max_turns only.
+     */
+    'duration_presets' => [
+        'quick' => ['max_duration_seconds' => 180, 'max_turns' => 3],
+        'short' => ['max_duration_seconds' => 300, 'max_turns' => 5],
+        'medium' => ['max_duration_seconds' => 600, 'max_turns' => 8],
+        'standard' => ['max_duration_seconds' => 900, 'max_turns' => 12],
+    ],
+
     'limits' => [
         'free' => [
             'max_duration_seconds' => 300,

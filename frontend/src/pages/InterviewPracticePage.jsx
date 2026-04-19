@@ -44,6 +44,15 @@ const DIFFICULTIES = [
   { value: 'hard', label: 'Hard' },
 ];
 
+/** Shorter sessions = fewer answers before wrap-up; server caps by your plan. */
+const INTERVIEW_DURATION_PRESETS = [
+  { value: 'quick', label: 'Quick (~3 min, few questions)' },
+  { value: 'short', label: 'Short (~5 min)' },
+  { value: 'medium', label: 'Medium (~10 min)' },
+  { value: 'standard', label: 'Standard (~15 min)' },
+  { value: 'full', label: 'Full plan limit (longest)' },
+];
+
 function pickMimeType() {
   if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) {
     return '';
@@ -99,6 +108,7 @@ export default function InterviewPracticePage() {
 
   const [interviewType, setInterviewType] = useState('general_job');
   const [difficulty, setDifficulty] = useState('normal');
+  const [durationPreset, setDurationPreset] = useState('standard');
   const [customRole, setCustomRole] = useState('');
   const [starting, setStarting] = useState(false);
 
@@ -349,7 +359,7 @@ export default function InterviewPracticePage() {
       bandieVoiceRef.current = null;
     }
     try {
-      const payload = { interview_type: interviewType, difficulty };
+      const payload = { interview_type: interviewType, difficulty, duration_preset: durationPreset };
       if (interviewType === 'custom_role') {
         payload.custom_role = customRole.trim();
       }
@@ -763,6 +773,35 @@ export default function InterviewPracticePage() {
                   </div>
                 </Form.Group>
 
+                <Form.Group className="mb-4">
+                  <Form.Label>Session length</Form.Label>
+                  <Form.Select
+                    value={durationPreset}
+                    onChange={(e) => setDurationPreset(e.target.value)}
+                    aria-label="Interview session length"
+                  >
+                    {INTERVIEW_DURATION_PRESETS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                  <Form.Text muted>
+                    Caps session time and how many answers before the interview wraps up (never above your plan).{' '}
+                    {isSubscribed ? (
+                      <>
+                        Your plan allows up to about {Math.floor((status?.limits?.max_duration_seconds ?? 3600) / 60)}{' '}
+                        min and {status?.limits?.max_turns ?? 80} answers per session.
+                      </>
+                    ) : (
+                      <>
+                        Free practice allows up to about {Math.floor((status?.limits?.max_duration_seconds ?? 300) / 60)}{' '}
+                        min and {status?.limits?.max_turns ?? 10} answers per session.
+                      </>
+                    )}
+                  </Form.Text>
+                </Form.Group>
+
                 <Form.Group className="mb-3">
                   <Form.Label>Interviewer voice (browser TTS)</Form.Label>
                   <div className="d-flex flex-wrap align-items-center gap-2">
@@ -837,6 +876,12 @@ export default function InterviewPracticePage() {
                       <div className="small text-muted">
                         {session?.interview_type_label} · {session?.difficulty}
                         {continuousListening ? ' · Hands-free on' : ' · Hands-free off'}
+                        {session?.max_turns != null ? (
+                          <>
+                            {' '}
+                            · Up to {session.max_turns} answer{session.max_turns === 1 ? '' : 's'}
+                          </>
+                        ) : null}
                       </div>
                     </div>
                   </div>
