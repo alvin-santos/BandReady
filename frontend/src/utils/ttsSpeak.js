@@ -309,3 +309,42 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
     window.speechSynthesis.speak(u);
   }
 }
+
+const DEFAULT_VOICE_PREVIEW_TEXT =
+  "Hi, I'm Bandie. This is how I'll sound as your interviewer during practice.";
+
+/**
+ * Speak a short sample with a specific browser TTS voice (resolves to the live `getVoices()` instance).
+ *
+ * @param {SpeechSynthesisVoice | null | undefined} voice
+ * @param {SpeechSynthesisVoice[]} voicesList
+ * @param {{ text?: string; rate?: number; lang?: string; onEnd?: () => void }} [options]
+ */
+export function previewBrowserTtsVoice(voice, voicesList, options) {
+  if (typeof window === 'undefined' || !window.speechSynthesis || !voice) {
+    options?.onEnd?.();
+    return;
+  }
+  const text =
+    typeof options?.text === 'string' && options.text.trim() !== '' ? options.text.trim() : DEFAULT_VOICE_PREVIEW_TEXT;
+  const rate = typeof options?.rate === 'number' && options.rate >= 0.5 && options.rate <= 2 ? options.rate : 1;
+  const lang = typeof options?.lang === 'string' && options.lang.trim() !== '' ? options.lang.trim() : 'en-US';
+
+  window.speechSynthesis.cancel();
+
+  const live = resolveVoiceFromLiveList(voice, voicesList);
+  const u = new SpeechSynthesisUtterance(text);
+  if (live) {
+    u.voice = live;
+    u.lang = live.lang || lang;
+  } else {
+    u.lang = lang;
+  }
+  u.rate = rate;
+  const done = () => {
+    options?.onEnd?.();
+  };
+  u.onend = done;
+  u.onerror = done;
+  window.speechSynthesis.speak(u);
+}

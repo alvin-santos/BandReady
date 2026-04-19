@@ -18,7 +18,7 @@ import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { DEFAULT_SECTION, useBandieTutor } from '../context/BandieTutorContext.jsx';
 import { buildEnglishVoicePool, stableVoiceKey } from '../utils/ttsDialogue.js';
-import { speakWithStableEnglishVoice } from '../utils/ttsSpeak.js';
+import { previewBrowserTtsVoice, speakWithStableEnglishVoice } from '../utils/ttsSpeak.js';
 import { getTtsDisabledVoiceKeysSet } from '../utils/ttsVoiceSettingsCache.js';
 
 const SILENCE_SESSION_MS = 15_000;
@@ -121,6 +121,7 @@ export default function InterviewPracticePage() {
   const [interviewerVoiceKey, setInterviewerVoiceKey] = useState(readStoredVoiceKey);
   const [interviewerVoiceLabel, setInterviewerVoiceLabel] = useState('');
   const [continuousListening, setContinuousListening] = useState(readStoredContinuous);
+  const [previewingVoiceKey, setPreviewingVoiceKey] = useState(null);
 
   const voicesRef = useRef([]);
   const bandieVoiceRef = useRef(null);
@@ -671,6 +672,25 @@ export default function InterviewPracticePage() {
     setShowVoiceModal(false);
   };
 
+  const playVoicePreview = useCallback((voice, spinnerKey) => {
+    if (!voice || typeof window === 'undefined' || !window.speechSynthesis) {
+      return;
+    }
+    const list = window.speechSynthesis.getVoices() ?? [];
+    setPreviewingVoiceKey(spinnerKey);
+    previewBrowserTtsVoice(voice, list, {
+      onEnd: () => setPreviewingVoiceKey(null),
+    });
+  }, []);
+
+  const closeVoiceModal = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setPreviewingVoiceKey(null);
+    setShowVoiceModal(false);
+  }, []);
+
   startRecordingRef.current = startRecording;
 
   return (
@@ -1107,14 +1127,15 @@ export default function InterviewPracticePage() {
         </Col>
       </Row>
 
-      <Modal show={showVoiceModal} onHide={() => setShowVoiceModal(false)} centered size="lg">
+      <Modal show={showVoiceModal} onHide={closeVoiceModal} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Interviewer voice</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <p className="small text-muted mb-3">
             These are browser speech voices (same engine as Bandie&apos;s lines). Availability depends on your device.
-            Voices blocked by the site or your account settings are hidden.
+            Voices blocked by the site or your account settings are hidden. Use <strong>Preview</strong> to hear a short
+            sample before you choose.
           </p>
           {modalVoices.length === 0 ? (
             <div className="text-muted small py-3 text-center">
@@ -1124,26 +1145,85 @@ export default function InterviewPracticePage() {
           ) : (
             <ListGroup variant="flush" className="border rounded" style={{ maxHeight: 380, overflowY: 'auto' }}>
               <ListGroup.Item
-                action
-                active={!interviewerVoiceKey.trim()}
-                onClick={selectInterviewVoiceAutomatic}
-                className="rounded-0"
+                as="div"
+                className={`d-flex align-items-center gap-2 rounded-0 p-0 list-group-item-action ${!interviewerVoiceKey.trim() ? 'active' : ''}`}
               >
-                <div className="fw-semibold">Automatic</div>
-                <div className="small text-muted">Let BandReady pick a clear English voice for this session</div>
+                <button
+                  type="button"
+                  className={`flex-grow-1 border-0 bg-transparent text-start p-3 ${!interviewerVoiceKey.trim() ? 'text-white' : 'text-reset'}`}
+                  onClick={selectInterviewVoiceAutomatic}
+                >
+                  <div className="fw-semibold">Automatic</div>
+                  <div className="small text-muted">Let BandReady pick a clear English voice for this session</div>
+                </button>
+                <div className={`d-flex align-items-center pe-2 border-start ${!interviewerVoiceKey.trim() ? 'border-white border-opacity-25' : ''}`}>
+                  <Button
+                    type="button"
+                    variant={!interviewerVoiceKey.trim() ? 'light' : 'outline-secondary'}
+                    size="sm"
+                    className="text-nowrap"
+                    disabled={!modalVoices[0]}
+                    title="Play a sample with one of the automatic voices"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (modalVoices[0]) {
+                        playVoicePreview(modalVoices[0], '__auto__');
+                      }
+                    }}
+                  >
+                    {previewingVoiceKey === '__auto__' ? (
+                      <Spinner animation="border" size="sm" />
+                    ) : (
+                      <>
+                        <i className="bi bi-play-fill" aria-hidden />
+                        <span className="d-none d-sm-inline ms-1">Preview</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </ListGroup.Item>
               {modalVoices.map((v) => {
                 const vk = stableVoiceKey(v);
                 return (
                   <ListGroup.Item
                     key={vk}
-                    action
-                    active={interviewerVoiceKey === vk}
-                    onClick={() => selectInterviewVoice(v)}
-                    className="rounded-0"
+                    as="div"
+                    className={`d-flex align-items-center gap-2 rounded-0 p-0 border-top list-group-item-action ${interviewerVoiceKey === vk ? 'active' : ''}`}
                   >
-                    <div className="fw-semibold">{v.name}</div>
-                    <div className="small text-muted">{v.lang || 'en'}</div>
+                    <button
+                      type="button"
+                      className={`flex-grow-1 border-0 bg-transparent text-start p-3 ${interviewerVoiceKey === vk ? 'text-white' : 'text-reset'}`}
+                      onClick={() => selectInterviewVoice(v)}
+                    >
+                      <div className="fw-semibold">{v.name}</div>
+                      <div className="small text-muted">{v.lang || 'en'}</div>
+                    </button>
+                    <div
+                      className={`d-flex align-items-center pe-2 border-start ${interviewerVoiceKey === vk ? 'border-white border-opacity-25' : ''}`}
+                    >
+                      <Button
+                        type="button"
+                        variant={interviewerVoiceKey === vk ? 'light' : 'outline-secondary'}
+                        size="sm"
+                        className="text-nowrap"
+                        title="Play a short sample in this voice"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          playVoicePreview(v, vk);
+                        }}
+                      >
+                        {previewingVoiceKey === vk ? (
+                          <Spinner animation="border" size="sm" />
+                        ) : (
+                          <>
+                            <i className="bi bi-play-fill" aria-hidden />
+                            <span className="d-none d-sm-inline ms-1">Preview</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </ListGroup.Item>
                 );
               })}
