@@ -7,6 +7,8 @@ import {
   Col,
   Container,
   Form,
+  ListGroup,
+  Modal,
   ProgressBar,
   Row,
   Spinner,
@@ -15,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { DEFAULT_SECTION, useBandieTutor } from '../context/BandieTutorContext.jsx';
+import { buildEnglishVoicePool, stableVoiceKey } from '../utils/ttsDialogue.js';
 import { speakWithStableEnglishVoice } from '../utils/ttsSpeak.js';
 import { getTtsDisabledVoiceKeysSet } from '../utils/ttsVoiceSettingsCache.js';
 
@@ -70,6 +73,23 @@ function formatClock(totalSec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+const LS_INTERVIEW_TTS_VOICE = 'bandready_interview_voice_key';
+const LS_INTERVIEW_CONTINUOUS = 'bandready_interview_continuous_listening';
+
+function readStoredVoiceKey() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return window.localStorage.getItem(LS_INTERVIEW_TTS_VOICE) || '';
+}
+
+function readStoredContinuous() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return window.localStorage.getItem(LS_INTERVIEW_CONTINUOUS) === '1';
+}
+
 export default function InterviewPracticePage() {
   const { isSubscribed, refresh: refreshAuth } = useAuth();
   const { setTutorSection } = useBandieTutor();
@@ -96,6 +116,11 @@ export default function InterviewPracticePage() {
   const [replaying, setReplaying] = useState(false);
   const [recordElapsedSec, setRecordElapsedSec] = useState(0);
   const [infoBanner, setInfoBanner] = useState('');
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [modalVoices, setModalVoices] = useState([]);
+  const [interviewerVoiceKey, setInterviewerVoiceKey] = useState(readStoredVoiceKey);
+  const [interviewerVoiceLabel, setInterviewerVoiceLabel] = useState('');
+  const [continuousListening, setContinuousListening] = useState(readStoredContinuous);
 
   const voicesRef = useRef([]);
   const bandieVoiceRef = useRef(null);
@@ -108,6 +133,11 @@ export default function InterviewPracticePage() {
   const tickRef = useRef(null);
   const discardRecordingRef = useRef(false);
   const maxDurationStopRef = useRef(false);
+  const startRecordingRef = useRef(null);
+  const typingRef = useRef(false);
+  const phaseRef = useRef('setup');
+  const recordingRef = useRef(false);
+  const scheduleHandsFreeAfterReplyRef = useRef(false);
 
   const sessionId = session?.id;
 
@@ -138,6 +168,18 @@ export default function InterviewPracticePage() {
     void loadStatus();
     void refreshAuth();
   }, [loadStatus, refreshAuth]);
+
+  useEffect(() => {
+    typingRef.current = typing;
+  }, [typing]);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    recordingRef.current = recording;
+  }, [recording]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -222,6 +264,26 @@ export default function InterviewPracticePage() {
 
   endSessionRef.current = endSession;
 
+  const schedulePostInterviewerListening = useCallback(() => {
+    if (!continuousListening) {
+      armSilenceSessionTimer();
+      return;
+    }
+    void (async () => {
+      await new Promise((r) => setTimeout(r, 450));
+      if (phaseRef.current !== 'live') {
+        return;
+      }
+      if (recordingRef.current) {
+        return;
+      }
+      if (typingRef.current) {
+        return;
+      }
+      await startRecordingRef.current?.();
+    })();
+  }, [continuousListening, armSilenceSessionTimer]);
+
   const speakBandie = useCallback(
     async (text) => {
       if (muted || !text?.trim() || typeof window === 'undefined' || !window.speechSynthesis) {
@@ -229,6 +291,10 @@ export default function InterviewPracticePage() {
       }
       const disabled = await getTtsDisabledVoiceKeysSet();
       const plain = String(text).replace(/\n+/g, ' ').trim();
+      const ttsOpts = {
+        rate: speechRate,
+        ...(interviewerVoiceKey.trim() !== '' ? { preferredVoiceKey: interviewerVoiceKey.trim() } : {}),
+      };
       await new Promise((resolve) => {
         speakWithStableEnglishVoice(
           plain,
@@ -237,11 +303,11 @@ export default function InterviewPracticePage() {
           resolve,
           disabled,
           bandieVoiceRef,
-          { rate: speechRate }
+          ttsOpts
         );
       });
     },
-    [muted, speechRate]
+    [muted, speechRate, interviewerVoiceKey]
   );
 
   const stopTracks = useCallback(() => {
@@ -278,7 +344,9 @@ export default function InterviewPracticePage() {
     setError('');
     setInfoBanner('');
     setStarting(true);
-    bandieVoiceRef.current = null;
+    if (!interviewerVoiceKey.trim()) {
+      bandieVoiceRef.current = null;
+    }
     try {
       const payload = { interview_type: interviewType, difficulty };
       if (interviewType === 'custom_role') {
@@ -293,7 +361,7 @@ export default function InterviewPracticePage() {
       if (lastAi?.body) {
         await speakBandie(lastAi.body);
       }
-      armSilenceSessionTimer();
+      schedulePostInterviewerListening();
       void loadStatus();
     } catch (e) {
       const msg = e.response?.data?.message || 'Could not start the interview.';
@@ -337,6 +405,8 @@ export default function InterviewPracticePage() {
         }
         setPhase('summary');
         void loadStatus();
+      } else if (continuousListening) {
+        scheduleHandsFreeAfterReplyRef.current = true;
       } else {
         armSilenceSessionTimer();
       }
@@ -364,13 +434,18 @@ export default function InterviewPracticePage() {
       }
     } finally {
       setTyping(false);
+      typingRef.current = false;
+      if (scheduleHandsFreeAfterReplyRef.current) {
+        scheduleHandsFreeAfterReplyRef.current = false;
+        schedulePostInterviewerListening();
+      }
     }
   };
 
   const uploadRecording = async (blob, mimeType) => {
     if (!sessionId || blob.size < 200) {
       setError('Recording was too short. Try again.');
-      armSilenceSessionTimer();
+      schedulePostInterviewerListening();
       return;
     }
     setTyping(true);
@@ -384,13 +459,13 @@ export default function InterviewPracticePage() {
       setLiveTranscript(t);
       if (!t) {
         setError("I didn't catch that. Please try again.");
-        armSilenceSessionTimer();
+        schedulePostInterviewerListening();
         return;
       }
       await sendUserText(t);
     } catch (e) {
       setError(e.response?.data?.message || 'Transcription failed.');
-      armSilenceSessionTimer();
+      schedulePostInterviewerListening();
     } finally {
       setTyping(false);
     }
@@ -438,7 +513,7 @@ export default function InterviewPracticePage() {
         }
         if (discardRecordingRef.current) {
           discardRecordingRef.current = false;
-          armSilenceSessionTimer();
+          schedulePostInterviewerListening();
           return;
         }
         if (maxDurationStopRef.current) {
@@ -527,6 +602,77 @@ export default function InterviewPracticePage() {
 
   const canStart = status?.can_start !== false;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (interviewerVoiceKey.trim()) {
+      window.localStorage.setItem(LS_INTERVIEW_TTS_VOICE, interviewerVoiceKey.trim());
+    } else {
+      window.localStorage.removeItem(LS_INTERVIEW_TTS_VOICE);
+    }
+  }, [interviewerVoiceKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(LS_INTERVIEW_CONTINUOUS, continuousListening ? '1' : '0');
+  }, [continuousListening]);
+
+  useEffect(() => {
+    const k = interviewerVoiceKey.trim();
+    if (!k) {
+      setInterviewerVoiceLabel('');
+      return;
+    }
+    const found = voicesRef.current.find((v) => stableVoiceKey(v) === k);
+    if (found) {
+      setInterviewerVoiceLabel(`${found.name} (${found.lang || 'en'})`);
+    }
+  }, [interviewerVoiceKey, showVoiceModal]);
+
+  const openVoiceModal = useCallback(async () => {
+    setShowVoiceModal(true);
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      setModalVoices([]);
+      return;
+    }
+    let list = window.speechSynthesis.getVoices() ?? [];
+    if (list.length === 0) {
+      await new Promise((resolve) => {
+        const onVoices = () => {
+          window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
+          resolve();
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', onVoices);
+        setTimeout(() => {
+          window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
+          resolve();
+        }, 1200);
+      });
+      list = window.speechSynthesis.getVoices() ?? [];
+    }
+    const disabled = await getTtsDisabledVoiceKeysSet();
+    setModalVoices(buildEnglishVoicePool(list, disabled));
+  }, []);
+
+  const selectInterviewVoiceAutomatic = () => {
+    setInterviewerVoiceKey('');
+    setInterviewerVoiceLabel('');
+    bandieVoiceRef.current = null;
+    setShowVoiceModal(false);
+  };
+
+  const selectInterviewVoice = (v) => {
+    setInterviewerVoiceKey(stableVoiceKey(v));
+    setInterviewerVoiceLabel(`${v.name} (${v.lang || 'en'})`);
+    bandieVoiceRef.current = null;
+    setShowVoiceModal(false);
+  };
+
+  startRecordingRef.current = startRecording;
+
   return (
     <Container className="py-4 py-md-5">
       <Row className="justify-content-center">
@@ -597,6 +743,43 @@ export default function InterviewPracticePage() {
                   </div>
                 </Form.Group>
 
+                <Form.Group className="mb-3">
+                  <Form.Label>Interviewer voice (browser TTS)</Form.Label>
+                  <div className="d-flex flex-wrap align-items-center gap-2">
+                    <Button variant="outline-secondary" size="sm" type="button" onClick={() => void openVoiceModal()}>
+                      <i className="bi bi-soundwave me-1" aria-hidden />
+                      Choose voice…
+                    </Button>
+                    <span className="small text-muted">
+                      {interviewerVoiceKey.trim()
+                        ? interviewerVoiceLabel || 'Custom voice selected'
+                        : 'Automatic (recommended)'}
+                    </span>
+                  </div>
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Check
+                    type="switch"
+                    id="continuous-listening"
+                    label="Continuous listening (hands-free)"
+                    checked={continuousListening}
+                    onChange={(e) => setContinuousListening(e.target.checked)}
+                  />
+                  <Form.Text muted>
+                    When on, the mic opens automatically after Bandie finishes each question. Use a{' '}
+                    <strong>quiet room</strong> — background noise may be transcribed. You still tap{' '}
+                    <strong>Stop & send</strong> to finish each answer. Turn off to use{' '}
+                    <strong>Start recording</strong> manually instead.
+                  </Form.Text>
+                  {continuousListening ? (
+                    <Alert variant="warning" className="py-2 small mt-2 mb-0">
+                      Hands-free mode: stay in a quiet space. TV, music, or side conversations can be picked up by the
+                      microphone and confuse the interview.
+                    </Alert>
+                  ) : null}
+                </Form.Group>
+
                 {error ? (
                   <Alert variant="danger" className="py-2">
                     {error}
@@ -633,6 +816,7 @@ export default function InterviewPracticePage() {
                       <div className="fw-semibold">Bandie Interview Practice</div>
                       <div className="small text-muted">
                         {session?.interview_type_label} · {session?.difficulty}
+                        {continuousListening ? ' · Hands-free on' : ' · Hands-free off'}
                       </div>
                     </div>
                   </div>
@@ -647,6 +831,9 @@ export default function InterviewPracticePage() {
                     <Badge bg="dark" className="rounded-pill">
                       {Math.floor(remainingSec / 60)}:{String(remainingSec % 60).padStart(2, '0')} left
                     </Badge>
+                    <Button variant="outline-secondary" size="sm" type="button" onClick={() => void openVoiceModal()}>
+                      Voice
+                    </Button>
                     <Button variant="outline-danger" size="sm" onClick={() => void stopInterviewClick()}>
                       Stop Interview
                     </Button>
@@ -659,8 +846,20 @@ export default function InterviewPracticePage() {
                   label={`${userTurns}/${maxTurns} answers`}
                 />
                 <div className="small text-muted mb-3">
-                  Turns: {userTurns} / {maxTurns} · After Bandie speaks, tap <strong>Start recording</strong> within{' '}
-                  {SILENCE_SESSION_MS / 1000}s or the session may end for silence.
+                  Turns: {userTurns} / {maxTurns}
+                  {continuousListening ? (
+                    <>
+                      {' '}
+                      · Hands-free: the mic opens after Bandie speaks (stay in a quiet place). If you do not start
+                      speaking within {SILENCE_SESSION_MS / 1000}s, the session may still time out.
+                    </>
+                  ) : (
+                    <>
+                      {' '}
+                      · After Bandie speaks, tap <strong>Start recording</strong> within {SILENCE_SESSION_MS / 1000}s or
+                      the session may end for silence.
+                    </>
+                  )}
                 </div>
 
                 <div
@@ -720,6 +919,14 @@ export default function InterviewPracticePage() {
                   <Col md={4}>
                     <Form.Check
                       type="switch"
+                      id="continuous-live"
+                      label="Continuous listening"
+                      checked={continuousListening}
+                      onChange={(e) => setContinuousListening(e.target.checked)}
+                      className="mb-2"
+                    />
+                    <Form.Check
+                      type="switch"
                       id="mute-tts"
                       label="Mute Bandie voice"
                       checked={muted}
@@ -739,9 +946,19 @@ export default function InterviewPracticePage() {
                 </Row>
 
                 <p className="small text-muted mb-2">
-                  Tap <strong>Start recording</strong> when you are ready to answer. Tap <strong>Stop & send</strong>{' '}
-                  when you are finished (up to {RECORD_MAX_SECONDS / 60} minutes). Pauses while you think will not stop
-                  the recording.
+                  {continuousListening ? (
+                    <>
+                      Listening starts automatically after Bandie speaks (hands-free). Tap <strong>Stop & send</strong>{' '}
+                      when you are finished (up to {RECORD_MAX_SECONDS / 60} minutes). You can still tap{' '}
+                      <strong>Start recording</strong> if the mic did not open.
+                    </>
+                  ) : (
+                    <>
+                      Tap <strong>Start recording</strong> when you are ready to answer. Tap <strong>Stop & send</strong>{' '}
+                      when you are finished (up to {RECORD_MAX_SECONDS / 60} minutes). Pauses while you think will not stop
+                      the recording.
+                    </>
+                  )}
                 </p>
                 <div className="d-flex flex-wrap gap-2 mb-3">
                   {!recording ? (
@@ -751,7 +968,7 @@ export default function InterviewPracticePage() {
                       disabled={typing || !session?.is_active}
                     >
                       <i className="bi bi-mic-fill me-1" aria-hidden />
-                      Start recording
+                      {continuousListening ? 'Start recording (manual)' : 'Start recording'}
                     </Button>
                   ) : (
                     <Button variant="warning" onClick={() => stopRecordingManual()} disabled={typing}>
@@ -889,6 +1106,51 @@ export default function InterviewPracticePage() {
           ) : null}
         </Col>
       </Row>
+
+      <Modal show={showVoiceModal} onHide={() => setShowVoiceModal(false)} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Interviewer voice</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="small text-muted mb-3">
+            These are browser speech voices (same engine as Bandie&apos;s lines). Availability depends on your device.
+            Voices blocked by the site or your account settings are hidden.
+          </p>
+          {modalVoices.length === 0 ? (
+            <div className="text-muted small py-3 text-center">
+              <Spinner animation="border" size="sm" className="me-2" />
+              Loading voices…
+            </div>
+          ) : (
+            <ListGroup variant="flush" className="border rounded" style={{ maxHeight: 380, overflowY: 'auto' }}>
+              <ListGroup.Item
+                action
+                active={!interviewerVoiceKey.trim()}
+                onClick={selectInterviewVoiceAutomatic}
+                className="rounded-0"
+              >
+                <div className="fw-semibold">Automatic</div>
+                <div className="small text-muted">Let BandReady pick a clear English voice for this session</div>
+              </ListGroup.Item>
+              {modalVoices.map((v) => {
+                const vk = stableVoiceKey(v);
+                return (
+                  <ListGroup.Item
+                    key={vk}
+                    action
+                    active={interviewerVoiceKey === vk}
+                    onClick={() => selectInterviewVoice(v)}
+                    className="rounded-0"
+                  >
+                    <div className="fw-semibold">{v.name}</div>
+                    <div className="small text-muted">{v.lang || 'en'}</div>
+                  </ListGroup.Item>
+                );
+              })}
+            </ListGroup>
+          )}
+        </Modal.Body>
+      </Modal>
     </Container>
   );
 }

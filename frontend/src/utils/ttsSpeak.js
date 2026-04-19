@@ -240,7 +240,7 @@ export function speakDialogueScript(script, voicesList, lang, onComplete, disabl
  * @param {() => void} onComplete
  * @param {Set<string>} [disabledVoiceKeys]
  * @param {{ current: SpeechSynthesisVoice | null }} stableVoiceRef first call picks a voice and stores it here; set `.current = null` to pick again (e.g. new question)
- * @param {{ chunkMaxChars?: number; rate?: number }} [options] smaller `chunkMaxChars` (e.g. 140) queues more short TTS utterances — helps weak connections / Chromium stalls. `rate` is SpeechSynthesisUtterance.rate (typically 0.5–2).
+ * @param {{ chunkMaxChars?: number; rate?: number; preferredVoiceKey?: string | null }} [options] smaller `chunkMaxChars` (e.g. 140) queues more short TTS utterances — helps weak connections / Chromium stalls. `rate` is SpeechSynthesisUtterance.rate (typically 0.5–2). `preferredVoiceKey` matches {@link stableVoiceKey}.
  */
 export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, disabledVoiceKeys, stableVoiceRef, options) {
   const plain = String(text ?? '').trim();
@@ -252,6 +252,14 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
   window.speechSynthesis.cancel();
 
   let pick = stableVoiceRef.current;
+  const prefKey = typeof options?.preferredVoiceKey === 'string' ? options.preferredVoiceKey.trim() : '';
+  if (prefKey !== '') {
+    const found = voicesList.find((v) => stableVoiceKey(v) === prefKey);
+    if (found && !disabledVoiceKeys?.has(prefKey)) {
+      pick = resolveVoiceFromLiveList(found, voicesList);
+      stableVoiceRef.current = pick;
+    }
+  }
   if (!pick) {
     const enPool = buildEnglishVoicePool(voicesList, disabledVoiceKeys);
     if (enPool.length > 0) {
