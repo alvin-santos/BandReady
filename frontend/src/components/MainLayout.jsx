@@ -82,6 +82,14 @@ export default function MainLayout() {
                   <i className="bi bi-file-earmark-arrow-down" aria-hidden />
                   Resources
                 </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/about" className={navItem}>
+                  <i className="bi bi-building" aria-hidden />
+                  About
+                </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/privacy-policy" className={navItem}>
+                  <i className="bi bi-file-lock2" aria-hidden />
+                  Privacy Policy
+                </NavDropdown.Item>
                 <NavDropdown.Item as={Link} to="/why-bandready" className={navItem}>
                   <i className="bi bi-info-circle" aria-hidden />
                   Why BandReady

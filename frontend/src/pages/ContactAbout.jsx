@@ -69,11 +69,22 @@ export default function ContactAbout() {
               We are not affiliated with official test providers — scores and AI feedback are for practice only. See our
               in-app disclaimer on each run and on the home page.
             </p>
-            <p className="mt-3 mb-0">
+            <p className="mt-3 mb-2">
               <Link to="/why-bandready" className="fw-semibold text-decoration-none">
                 Full feature list
                 <i className="bi bi-arrow-right ms-1" aria-hidden />
               </Link>
+            </p>
+            <p className="small text-muted mb-0">
+              Standalone pages:{' '}
+              <Link to="/about" className="fw-semibold text-decoration-none">
+                About
+              </Link>
+              {' · '}
+              <Link to="/privacy-policy" className="fw-semibold text-decoration-none">
+                Privacy Policy
+              </Link>
+              .
             </p>
           </Col>
           <Col lg={6}>

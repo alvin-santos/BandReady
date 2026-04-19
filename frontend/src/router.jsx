@@ -7,6 +7,8 @@ import Forum from './pages/Forum.jsx';
 import ForumCategory from './pages/ForumCategory.jsx';
 import ForumThread from './pages/ForumThread.jsx';
 import ContactAbout from './pages/ContactAbout.jsx';
+import AboutPage from './pages/AboutPage.jsx';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx';
 import WhyBandReady from './pages/WhyBandReady.jsx';
 import PracticeDisclaimer from './pages/PracticeDisclaimer.jsx';
 import Analytics from './pages/Analytics.jsx';
@@ -93,6 +95,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'why-bandready', element: <WhyBandReady /> },
+      { path: 'about', element: <AboutPage /> },
+      { path: 'privacy-policy', element: <PrivacyPolicyPage /> },
       { path: 'practice-disclaimer', element: <PracticeDisclaimer /> },
       { path: 'contact', element: <ContactAbout /> },
       { path: 'forum', element: <Forum /> },

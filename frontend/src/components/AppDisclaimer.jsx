@@ -11,11 +11,26 @@ export default function AppDisclaimer({ className = '' }) {
         BandReady is independent and not affiliated with IELTS or CELPIP. Scores are approximate. Practice is automated in
         your browser; real IELTS includes live speaking examiners, and official CELPIP is taken at a test centre—not here.
       </p>
-      <p className="mb-0">
+      <p className="mb-2">
+        <span className="text-body-secondary me-1">Legal &amp; info:</span>
+        <Link to="/about" className="link-secondary fw-semibold">
+          About
+        </Link>
+        {' · '}
+        <Link to="/privacy-policy" className="link-secondary fw-semibold">
+          Privacy Policy
+        </Link>
+        {' · '}
         <Link to="/practice-disclaimer" className="link-secondary fw-semibold">
-          Full practice disclaimer
-        </Link>{' '}
-        — how formats, AI speaking, and scoring relate to official tests.
+          Practice disclaimer
+        </Link>
+        {' · '}
+        <Link to="/contact" className="link-secondary fw-semibold">
+          Contact
+        </Link>
+      </p>
+      <p className="mb-0">
+        The practice disclaimer explains how formats, AI speaking, and scoring relate to official tests.
       </p>
     </div>
   );

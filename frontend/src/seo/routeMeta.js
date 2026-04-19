@@ -20,6 +20,16 @@ const EXACT = {
     title: 'Contact',
     description: 'Contact BandReady for support, feedback, or partnership questions.',
   },
+  '/about': {
+    title: 'About BandReady',
+    description:
+      'Learn what BandReady is: independent IELTS and CELPIP-style online practice, dashboards, forum, and how we relate to official tests.',
+  },
+  '/privacy-policy': {
+    title: 'Privacy Policy',
+    description:
+      'BandReady Privacy Policy: what we collect, cookies, Google AdSense, third parties (Stripe, Google sign-in, AI), and your choices.',
+  },
   '/forum': {
     title: 'Community forum',
     description:
