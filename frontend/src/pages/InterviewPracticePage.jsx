@@ -1183,7 +1183,7 @@ export default function InterviewPracticePage() {
         </Col>
       </Row>
 
-      <Modal show={showVoiceModal} onHide={closeVoiceModal} centered size="lg">
+      <Modal show={showVoiceModal} onHide={closeVoiceModal} centered size="xl" scrollable>
         <Modal.Header closeButton>
           <Modal.Title>Interviewer voice</Modal.Title>
         </Modal.Header>
@@ -1206,20 +1206,25 @@ export default function InterviewPracticePage() {
               >
                 <button
                   type="button"
-                  className={`flex-grow-1 border-0 bg-transparent text-start p-3 ${!interviewerVoiceKey.trim() ? 'text-white' : 'text-reset'}`}
+                  className={`flex-grow-1 min-w-0 border-0 bg-transparent text-start p-3 ${!interviewerVoiceKey.trim() ? 'text-white' : 'text-reset'}`}
                   onClick={selectInterviewVoiceAutomatic}
                 >
-                  <div className="fw-semibold">Automatic</div>
-                  <div className="small text-muted">Let BandReady pick a clear English voice for this session</div>
+                  <div className="fw-semibold text-truncate">Automatic</div>
+                  <div className="small text-muted text-truncate">
+                    Let BandReady pick a clear English voice for this session
+                  </div>
                 </button>
-                <div className={`d-flex align-items-center pe-2 border-start ${!interviewerVoiceKey.trim() ? 'border-white border-opacity-25' : ''}`}>
+                <div
+                  className={`d-flex align-items-center flex-shrink-0 pe-3 ps-2 border-start ${!interviewerVoiceKey.trim() ? 'border-white border-opacity-25' : ''}`}
+                >
                   <Button
                     type="button"
                     variant={!interviewerVoiceKey.trim() ? 'light' : 'outline-secondary'}
                     size="sm"
-                    className="text-nowrap"
+                    className="text-nowrap px-3"
                     disabled={!modalVoices[0]}
                     title="Play a sample with one of the automatic voices"
+                    aria-label="Preview automatic voice sample"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1232,8 +1237,8 @@ export default function InterviewPracticePage() {
                       <Spinner animation="border" size="sm" />
                     ) : (
                       <>
-                        <i className="bi bi-play-fill" aria-hidden />
-                        <span className="d-none d-sm-inline ms-1">Preview</span>
+                        <i className="bi bi-play-fill me-1" aria-hidden />
+                        Preview
                       </>
                     )}
                   </Button>
@@ -1249,21 +1254,26 @@ export default function InterviewPracticePage() {
                   >
                     <button
                       type="button"
-                      className={`flex-grow-1 border-0 bg-transparent text-start p-3 ${interviewerVoiceKey === vk ? 'text-white' : 'text-reset'}`}
+                      className={`flex-grow-1 min-w-0 border-0 bg-transparent text-start p-3 ${interviewerVoiceKey === vk ? 'text-white' : 'text-reset'}`}
                       onClick={() => selectInterviewVoice(v)}
                     >
-                      <div className="fw-semibold">{v.name}</div>
-                      <div className="small text-muted">{v.lang || 'en'}</div>
+                      <div className="fw-semibold text-truncate" title={v.name}>
+                        {v.name}
+                      </div>
+                      <div className={`small text-truncate ${interviewerVoiceKey === vk ? 'text-white-50' : 'text-muted'}`}>
+                        {v.lang || 'en'}
+                      </div>
                     </button>
                     <div
-                      className={`d-flex align-items-center pe-2 border-start ${interviewerVoiceKey === vk ? 'border-white border-opacity-25' : ''}`}
+                      className={`d-flex align-items-center flex-shrink-0 pe-3 ps-2 border-start ${interviewerVoiceKey === vk ? 'border-white border-opacity-25' : ''}`}
                     >
                       <Button
                         type="button"
                         variant={interviewerVoiceKey === vk ? 'light' : 'outline-secondary'}
                         size="sm"
-                        className="text-nowrap"
+                        className="text-nowrap px-3"
                         title="Play a short sample in this voice"
+                        aria-label={`Preview voice ${v.name}`}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1274,8 +1284,8 @@ export default function InterviewPracticePage() {
                           <Spinner animation="border" size="sm" />
                         ) : (
                           <>
-                            <i className="bi bi-play-fill" aria-hidden />
-                            <span className="d-none d-sm-inline ms-1">Preview</span>
+                            <i className="bi bi-play-fill me-1" aria-hidden />
+                            Preview
                           </>
                         )}
                       </Button>
