@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\ForumController;
 use App\Http\Controllers\Api\IeltsSpeakingAiController;
 use App\Http\Controllers\Api\InterviewPracticeController;
 use App\Http\Controllers\Api\MistakesHubController;
+use App\Http\Controllers\Api\PostPublicController;
 use App\Http\Controllers\Api\PublicRankingController;
 use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\SiteTrafficController;
@@ -53,6 +54,9 @@ Route::get('/resources', [DownloadablePublicController::class, 'index']);
 Route::get('/forum/categories', [ForumController::class, 'categories']);
 Route::get('/forum/categories/{id}/threads', [ForumController::class, 'threads'])->whereNumber('id');
 Route::get('/forum/threads/{id}', [ForumController::class, 'showThread'])->whereNumber('id');
+
+Route::get('/posts', [PostPublicController::class, 'index']);
+Route::get('/posts/{slug}', [PostPublicController::class, 'show'])->where('slug', '[a-z0-9-]+');
 
 Route::post('/contact-messages', [ContactMessageController::class, 'store'])
     ->middleware('throttle:10,1');

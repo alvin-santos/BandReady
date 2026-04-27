@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             AdSeeder::class,
             DownloadableSeeder::class,
             ForumCategorySeeder::class,
+            PostSeeder::class,
             UserSeeder::class,
             ForumThreadSeeder::class,
         ]);

@@ -34,7 +34,7 @@ export default function MainLayout() {
           >
             <img
               src="/bandready-mark.png"
-              alt=""
+              alt="BandReady"
               width={32}
               height={32}
               className="flex-shrink-0 rounded-2"
@@ -82,6 +82,18 @@ export default function MainLayout() {
                   <i className="bi bi-file-earmark-arrow-down" aria-hidden />
                   Resources
                 </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/how-it-works" className={navItem}>
+                  <i className="bi bi-diagram-3" aria-hidden />
+                  How it works
+                </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/features" className={navItem}>
+                  <i className="bi bi-ui-checks-grid" aria-hidden />
+                  Features
+                </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/blog" className={navItem}>
+                  <i className="bi bi-journal-text" aria-hidden />
+                  Blog
+                </NavDropdown.Item>
                 <NavDropdown.Item as={Link} to="/about" className={navItem}>
                   <i className="bi bi-building" aria-hidden />
                   About
@@ -89,6 +101,10 @@ export default function MainLayout() {
                 <NavDropdown.Item as={Link} to="/privacy-policy" className={navItem}>
                   <i className="bi bi-file-lock2" aria-hidden />
                   Privacy Policy
+                </NavDropdown.Item>
+                <NavDropdown.Item as={Link} to="/terms" className={navItem}>
+                  <i className="bi bi-file-earmark-text" aria-hidden />
+                  Terms
                 </NavDropdown.Item>
                 <NavDropdown.Item as={Link} to="/why-bandready" className={navItem}>
                   <i className="bi bi-info-circle" aria-hidden />

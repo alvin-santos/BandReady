@@ -10,12 +10,20 @@ export default function RouteSeo() {
   const origin = getSiteOrigin();
   const ogImage = origin ? `${origin}/bandready-mark.png` : '/bandready-mark.png';
 
-  const jsonLd = {
+  const websiteJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'BandReady',
     description,
     url: origin ? `${origin}/` : '/',
+  };
+
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'BandReady',
+    url: origin ? `${origin}/` : '/',
+    logo: ogImage,
   };
 
   return (
@@ -37,7 +45,8 @@ export default function RouteSeo() {
       <meta name="twitter:card" content="summary" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
-      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      <script type="application/ld+json">{JSON.stringify(websiteJsonLd)}</script>
+      <script type="application/ld+json">{JSON.stringify(organizationJsonLd)}</script>
     </Helmet>
   );
 }

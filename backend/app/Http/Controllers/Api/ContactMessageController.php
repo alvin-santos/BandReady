@@ -13,17 +13,19 @@ class ContactMessageController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:120',
             'email' => 'required|email|max:190',
-            'category' => 'required|string|in:feedback,question,other',
             'message' => 'required|string|min:10|max:8000',
+            // Keep backwards compatibility with the old contact form.
+            'category' => 'sometimes|string|in:feedback,question,other',
         ]);
 
         $user = $request->user('sanctum');
+        $category = $data['category'] ?? 'feedback';
 
         ContactMessage::query()->create([
             'user_id' => $user?->id,
             'name' => $data['name'],
             'email' => $data['email'],
-            'category' => $data['category'],
+            'category' => $category,
             'message' => $data['message'],
             'ip_address' => $request->ip(),
         ]);

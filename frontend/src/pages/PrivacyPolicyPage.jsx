@@ -1,7 +1,7 @@
 import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
-const LAST_UPDATED = 'April 20, 2026';
+const LAST_UPDATED = 'April 27, 2026';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -14,9 +14,9 @@ export default function PrivacyPolicyPage() {
         Last updated: <strong>{LAST_UPDATED}</strong>
       </p>
       <p className="lead text-muted mb-4">
-        This policy describes how BandReady (&quot;we&quot;, &quot;us&quot;) handles information when you use our
-        website and services. By using BandReady, you agree to this policy together with our terms implied at
-        registration and checkout. If you do not agree, please do not use the site.
+        This Privacy Policy explains how BandReady (&quot;we&quot;, &quot;us&quot;) collects, uses, and shares
+        information when you use our website and services (the &quot;Service&quot;). If you do not agree, please do not
+        use the Service.
       </p>
 
       <section className="mb-4">
@@ -48,13 +48,13 @@ export default function PrivacyPolicyPage() {
             servers.
           </li>
           <li className="mb-2">
-            <strong>Technical &amp; analytics data</strong> — we may log IP address, user agent, and coarse technical
-            information for security and operations. We also assign a random visitor identifier stored in your browser
-            (localStorage) to record anonymous page views for internal traffic statistics.
+            <strong>Technical data</strong> — we may log IP address, device/browser information, and basic request logs
+            for security, troubleshooting, and service performance.
           </li>
           <li className="mb-0">
-            <strong>Referrers</strong> — on your first load in a tab we may store the browser&apos;s referring URL (if
-            any) alongside traffic events to understand how visitors find the site.
+            <strong>Analytics</strong> — we may record page visits and interactions (for example, the page path and time
+            of visit). We may store an anonymous visitor identifier in your browser (localStorage) to understand traffic
+            trends and improve the Service.
           </li>
         </ul>
       </section>
@@ -63,7 +63,7 @@ export default function PrivacyPolicyPage() {
         <h2 className="h5 fw-bold text-body mb-2">3. Cookies and similar technologies</h2>
         <p className="text-body-secondary mb-2">
           We use cookies and local storage as needed for sign-in sessions, preferences, and the anonymous visitor id
-          described above. Third-party scripts may set additional cookies when you load those features (see below).
+          described above. Third-party services (such as advertising or embedded tools) may also set cookies.
         </p>
         <p className="text-body-secondary mb-0">
           You can control cookies through your browser settings. Blocking required cookies may prevent sign-in or core
@@ -108,9 +108,10 @@ export default function PrivacyPolicyPage() {
             <strong>Stripe</strong> — payment processing for subscriptions or purchases.
           </li>
           <li className="mb-2">
-            <strong>AI providers</strong> — where enabled, features such as writing feedback, speaking scoring, or
-            interview practice send relevant text (and where applicable audio transcripts) to our AI vendor to generate
-            responses. Do not submit sensitive personal data you do not want processed by those systems.
+            <strong>AI processing</strong> — where enabled, features like writing feedback, speaking feedback, study plan
+            generation, or interview practice may send relevant text (and where applicable audio transcripts) to an AI
+            provider to generate outputs. Do not submit sensitive personal data you do not want processed by those
+            systems.
           </li>
           <li className="mb-0">
             <strong>Hosting and infrastructure</strong> — servers and databases that store site and account data.
@@ -129,7 +130,16 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="mb-4">
-        <h2 className="h5 fw-bold text-body mb-2">7. Retention</h2>
+        <h2 className="h5 fw-bold text-body mb-2">7. Sharing</h2>
+        <p className="text-body-secondary mb-0">
+          We share information with service providers (for example, hosting, analytics, payments, or AI processing) as
+          needed to operate the Service, and when required by law. We may also share aggregated or de-identified
+          information that cannot reasonably be used to identify you.
+        </p>
+      </section>
+
+      <section className="mb-4">
+        <h2 className="h5 fw-bold text-body mb-2">8. Retention</h2>
         <p className="text-body-secondary mb-0">
           We keep account and practice data for as long as your account exists and as needed for legal, security, or
           operational purposes. Traffic analytics may be aggregated or retained according to internal needs. You may
@@ -138,7 +148,7 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="mb-4">
-        <h2 className="h5 fw-bold text-body mb-2">8. Security</h2>
+        <h2 className="h5 fw-bold text-body mb-2">9. Security</h2>
         <p className="text-body-secondary mb-0">
           We use reasonable technical and organizational measures to protect information. No method of transmission over
           the Internet is completely secure; we cannot guarantee absolute security.
@@ -146,7 +156,7 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="mb-4">
-        <h2 className="h5 fw-bold text-body mb-2">9. Children</h2>
+        <h2 className="h5 fw-bold text-body mb-2">10. Children</h2>
         <p className="text-body-secondary mb-0">
           BandReady is not directed at children under 13 (or the minimum age required in your jurisdiction). We do not
           knowingly collect personal information from children. If you believe we have collected such information,
@@ -155,7 +165,7 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="mb-4">
-        <h2 className="h5 fw-bold text-body mb-2">10. International users</h2>
+        <h2 className="h5 fw-bold text-body mb-2">11. International users</h2>
         <p className="text-body-secondary mb-0">
           Our servers and providers may be located in countries other than yours. By using the service, you understand
           that information may be transferred and processed across borders subject to this policy and applicable law.
@@ -163,7 +173,7 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="mb-4">
-        <h2 className="h5 fw-bold text-body mb-2">11. Your choices and rights</h2>
+        <h2 className="h5 fw-bold text-body mb-2">12. Your choices and rights</h2>
         <p className="text-body-secondary mb-0">
           Depending on where you live, you may have rights to access, correct, delete, or restrict processing of your
           personal data, or to object to certain processing. Contact us through the{' '}
@@ -172,7 +182,7 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="mb-4">
-        <h2 className="h5 fw-bold text-body mb-2">12. Changes</h2>
+        <h2 className="h5 fw-bold text-body mb-2">13. Changes</h2>
         <p className="text-body-secondary mb-0">
           We may update this Privacy Policy from time to time. The &quot;Last updated&quot; date at the top will change
           when we do. Continued use of the site after changes constitutes acceptance of the revised policy where the law
@@ -181,9 +191,11 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="mb-0">
-        <h2 className="h5 fw-bold text-body mb-2">13. Related pages</h2>
+        <h2 className="h5 fw-bold text-body mb-2">14. Related pages</h2>
         <p className="text-body-secondary mb-0">
           <Link to="/about">About BandReady</Link>
+          {' · '}
+          <Link to="/terms">Terms</Link>
           {' · '}
           <Link to="/practice-disclaimer">Practice disclaimer</Link>
           {' · '}

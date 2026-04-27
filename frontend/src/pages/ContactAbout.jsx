@@ -4,17 +4,10 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const categories = [
-  { value: 'feedback', label: 'Feedback' },
-  { value: 'question', label: 'Question' },
-  { value: 'other', label: 'Other' },
-];
-
 export default function ContactAbout() {
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [category, setCategory] = useState('feedback');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
@@ -32,7 +25,7 @@ export default function ContactAbout() {
     setErr('');
     setSending(true);
     try {
-      await api.post('/contact-messages', { name, email, category, message });
+      await api.post('/contact-messages', { name, email, message });
       setDone(true);
       setMessage('');
     } catch (ex) {
@@ -91,11 +84,11 @@ export default function ContactAbout() {
             <div className="br-card p-4 h-100">
               <h2 className="h5 fw-bold mb-3 d-flex align-items-center gap-2">
                 <i className="bi bi-envelope-paper text-br-rose" aria-hidden />
-                Contact &amp; feedback
+                Contact
               </h2>
               <p className="small text-muted mb-4">
-                Questions, ideas, or issues? Send a message — we read every submission. You can write as a guest or while
-                logged in (we&apos;ll attach your account for context).
+                Have a question or need help with BandReady? Send a message—guests are welcome. If you are logged in,
+                we may attach your account for context.
               </p>
               {done ? (
                 <Alert variant="success" className="border-0 mb-0">
@@ -127,16 +120,6 @@ export default function ContactAbout() {
                       />
                     </Col>
                   </Row>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small">Topic</Form.Label>
-                    <Form.Select value={category} onChange={(e) => setCategory(e.target.value)}>
-                      {categories.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
                   <Form.Group className="mb-3">
                     <Form.Label className="small">Message (min. 10 characters)</Form.Label>
                     <Form.Control

@@ -7,6 +7,21 @@ const EXACT = {
     title: 'BandReady — Free online IELTS exam & CELPIP test practice',
     description: DEFAULT_DESCRIPTION,
   },
+  '/how-it-works': {
+    title: 'How BandReady works — AI-powered CELPIP & IELTS preparation',
+    description:
+      'How BandReady helps you prepare for CELPIP and IELTS: enter exam date, generate a study plan, practice tasks, get feedback, and improve with progress tracking.',
+  },
+  '/features': {
+    title: 'Features — BandReady AI-powered CELPIP & IELTS prep',
+    description:
+      'BandReady features: AI study plan, speaking practice, writing evaluation, band/level guidance, daily tasks, and progress tracking for CELPIP and IELTS preparation.',
+  },
+  '/blog': {
+    title: 'Blog — CELPIP & IELTS preparation guides',
+    description:
+      'Read BandReady’s blog for CELPIP and IELTS preparation: study plans, speaking structure, writing improvement, exam strategy, and practice routines.',
+  },
   '/why-bandready': {
     title: 'Why BandReady?',
     description:
@@ -29,6 +44,11 @@ const EXACT = {
     title: 'Privacy Policy',
     description:
       'BandReady Privacy Policy: what we collect, cookies, Google AdSense, third parties (Stripe, Google sign-in, AI), and your choices.',
+  },
+  '/terms': {
+    title: 'Terms of Service',
+    description:
+      'BandReady Terms of Service: acceptable use, AI feature guidance, subscriptions, disclaimers, and how to contact us.',
   },
   '/forum': {
     title: 'Community forum',
@@ -116,6 +136,12 @@ export function getRouteMeta(pathname) {
     return {
       title: 'Forum thread',
       description: 'Read and reply to this discussion on the BandReady forum.',
+    };
+  }
+  if (path.startsWith('/blog/')) {
+    return {
+      title: 'Blog article — BandReady',
+      description: 'Read this BandReady article about CELPIP and IELTS preparation strategies and study routines.',
     };
   }
   if (path.startsWith('/forum/category/')) {

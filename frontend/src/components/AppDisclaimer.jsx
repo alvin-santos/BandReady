@@ -17,8 +17,20 @@ export default function AppDisclaimer({ className = '' }) {
           About
         </Link>
         {' · '}
+        <Link to="/blog" className="link-secondary fw-semibold">
+          Blog
+        </Link>
+        {' · '}
+        <Link to="/how-it-works" className="link-secondary fw-semibold">
+          How it works
+        </Link>
+        {' · '}
         <Link to="/privacy-policy" className="link-secondary fw-semibold">
           Privacy Policy
+        </Link>
+        {' · '}
+        <Link to="/terms" className="link-secondary fw-semibold">
+          Terms
         </Link>
         {' · '}
         <Link to="/practice-disclaimer" className="link-secondary fw-semibold">

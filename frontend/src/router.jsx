@@ -9,6 +9,11 @@ import ForumThread from './pages/ForumThread.jsx';
 import ContactAbout from './pages/ContactAbout.jsx';
 import AboutPage from './pages/AboutPage.jsx';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx';
+import HowItWorksPage from './pages/HowItWorksPage.jsx';
+import FeaturesPage from './pages/FeaturesPage.jsx';
+import BlogIndexPage from './pages/BlogIndexPage.jsx';
+import BlogPostPage from './pages/BlogPostPage.jsx';
+import TermsPage from './pages/TermsPage.jsx';
 import WhyBandReady from './pages/WhyBandReady.jsx';
 import PracticeDisclaimer from './pages/PracticeDisclaimer.jsx';
 import Analytics from './pages/Analytics.jsx';
@@ -96,7 +101,12 @@ export const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: 'why-bandready', element: <WhyBandReady /> },
       { path: 'about', element: <AboutPage /> },
+      { path: 'how-it-works', element: <HowItWorksPage /> },
+      { path: 'features', element: <FeaturesPage /> },
+      { path: 'blog', element: <BlogIndexPage /> },
+      { path: 'blog/:slug', element: <BlogPostPage /> },
       { path: 'privacy-policy', element: <PrivacyPolicyPage /> },
+      { path: 'terms', element: <TermsPage /> },
       { path: 'practice-disclaimer', element: <PracticeDisclaimer /> },
       { path: 'contact', element: <ContactAbout /> },
       { path: 'forum', element: <Forum /> },

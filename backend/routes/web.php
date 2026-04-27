@@ -14,9 +14,20 @@ Route::get('/sitemap.xml', function () {
     /** @var list<string> $paths Public SPA routes worth indexing (fragment-free). */
     $paths = [
         '/',
+        '/about',
+        '/how-it-works',
+        '/features',
+        '/blog',
+        '/blog/celpip-speaking-task-1-strategy',
+        '/blog/ielts-vs-celpip-comparison',
+        '/blog/how-to-get-clb-7-in-celpip',
+        '/blog/30-day-celpip-study-plan',
+        '/blog/common-ielts-speaking-mistakes',
         '/why-bandready',
         '/practice-disclaimer',
         '/contact',
+        '/privacy-policy',
+        '/terms',
         '/forum',
         '/login',
         '/register',
@@ -42,8 +53,7 @@ Route::get('/robots.txt', function () {
         'Allow: /',
         '',
     ];
-    $sitemapUrl = rtrim((string) config('app.url'), '/').'/sitemap.xml';
-    $lines[] = 'Sitemap: '.$sitemapUrl;
+    $lines[] = 'Sitemap: https://band-ready.com/sitemap.xml';
 
     return response(implode("\n", $lines), 200)->header('Content-Type', 'text/plain; charset=UTF-8');
 })->name('robots');
