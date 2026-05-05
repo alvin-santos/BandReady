@@ -311,7 +311,7 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
 }
 
 const DEFAULT_VOICE_PREVIEW_TEXT =
-  "Hi, I'm Bandie. This is how I'll sound as your interviewer during practice.";
+  "This is a short sample of how this voice will sound as your interviewer during practice.";
 
 /**
  * Speak a short sample with a specific browser TTS voice (resolves to the live `getVoices()` instance).

@@ -11,6 +11,13 @@ import { clearTtsDisabledVoiceKeysCache } from '../utils/ttsVoiceSettingsCache.j
 const VOICE_PREVIEW_TEXT =
   'This is a short sample of how this voice sounds for listening practice on BandReady.';
 
+/** @param {string | undefined} lang */
+function isEnUsVoiceLang(lang) {
+  if (!lang) return false;
+  const n = String(lang).toLowerCase().replace(/_/g, '-');
+  return n === 'en-us' || n.startsWith('en-us-');
+}
+
 /** @typedef {'site' | 'user'} TtsVoicesVariant */
 
 /**
@@ -118,7 +125,7 @@ export default function TtsVoicesSettingsPage({ variant }) {
   );
 
   const rows = useMemo(() => {
-    const list = [...voices];
+    const list = voices.filter((v) => isEnUsVoiceLang(v.lang));
     list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
     return list.map((v) => {
       const key = stableVoiceKey(v);
@@ -153,6 +160,21 @@ export default function TtsVoicesSettingsPage({ variant }) {
   };
 
   const enableAll = () => setDisabledKeys(new Set());
+
+  const toggleDisableAllListed = () => {
+    if (!rows.length) return;
+    const rowKeys = rows.map(({ key }) => key);
+    setDisabledKeys((prev) => {
+      const allListedDisabled = rowKeys.every((k) => prev.has(k));
+      const next = new Set(prev);
+      if (allListedDisabled) {
+        rowKeys.forEach((k) => next.delete(k));
+      } else {
+        rowKeys.forEach((k) => next.add(k));
+      }
+      return next;
+    });
+  };
 
   async function save() {
     setSaving(true);
@@ -191,6 +213,8 @@ export default function TtsVoicesSettingsPage({ variant }) {
 
   const speechOk = typeof window !== 'undefined' && !!window.speechSynthesis;
   const isSite = variant === 'site';
+  const allListedDisabled =
+    rows.length > 0 && rows.every(({ key }) => disabledKeys.has(key));
 
   return (
     <Container className="py-4">
@@ -199,10 +223,10 @@ export default function TtsVoicesSettingsPage({ variant }) {
         {isSite ? 'TTS voices (listening) — site' : 'Listening voices (your account)'}
       </h1>
       <p className="text-muted small mb-3">
-        Voices are detected in <strong>this browser only</strong>. Stable keys are stored on the server; each device matches
-        keys against its own voice list. Turn <strong>off</strong> voices you do not want used for exam-style listening. Built-in
-        filters (clear US/UK/AU/CA/NZ/IE, no child/novelty) still apply first; disabled keys remove more. Use{' '}
-        <strong>Preview</strong> to hear each voice before you disable it.
+        Only <strong>en-US</strong> voices are listed here. Voices are detected in <strong>this browser only</strong>. Stable keys
+        are stored on the server; each device matches keys against its own voice list. Turn <strong>off</strong> voices you do not
+        want used for exam-style listening. Built-in filters (clear US/UK/AU/CA/NZ/IE, no child/novelty) still apply first;
+        disabled keys remove more. Use <strong>Preview</strong> to hear each voice before you disable it.
       </p>
       {!isSite && (
         <p className="text-muted small mb-3">
@@ -234,6 +258,9 @@ export default function TtsVoicesSettingsPage({ variant }) {
         </Button>
         <Button type="button" variant="outline-secondary" size="sm" onClick={disableNonExamStyle} disabled={!rows.length}>
           Disable non–exam-style only
+        </Button>
+        <Button type="button" variant="outline-dark" size="sm" onClick={toggleDisableAllListed} disabled={!rows.length}>
+          {allListedDisabled ? 'Enable listed voices' : 'Disable all listed'}
         </Button>
         {previewingKey && (
           <Button type="button" variant="outline-danger" size="sm" onClick={stopVoicePreview}>
@@ -323,7 +350,11 @@ export default function TtsVoicesSettingsPage({ variant }) {
           </tbody>
         </Table>
         {!rows.length && speechOk && (
-          <p className="text-muted small mb-0">No voices yet — try refreshing or wait for the browser to load voices.</p>
+          <p className="text-muted small mb-0">
+            {voices.length
+              ? 'No en-US voices found in this browser — try another browser or system language pack.'
+              : 'No voices yet — try refreshing or wait for the browser to load voices.'}
+          </p>
         )}
       </div>
     </Container>

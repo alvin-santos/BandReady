@@ -1398,58 +1398,23 @@ small,
   color: #fffbeb !important;
 }
 
-@keyframes br-nav-cta-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1.5px);
-  }
-}
-
-@keyframes br-nav-cta-shadow {
-  0%,
-  100% {
-    box-shadow:
-      0 1px 0 color-mix(in srgb, #fff 70%, #fcd34d 30%) inset,
-      0 4px 16px rgba(0, 0, 0, 0.22);
-  }
-  50% {
-    box-shadow:
-      0 1px 0 color-mix(in srgb, #fff 70%, #fcd34d 30%) inset,
-      0 6px 22px rgba(0, 0, 0, 0.22);
-  }
-}
-
-@keyframes br-nav-cta-icon-sway {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  33% {
-    transform: rotate(-5deg);
-  }
-  66% {
-    transform: rotate(5deg);
-  }
-}
-
 /* Main nav — primary CTA (Start practice): gold / amber pill on burgundy bar */
 .br-sticky-header .nav-link.br-nav-cta {
-  color: #2a1206 !important;
+  color: #1a0a03 !important;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: none;
   padding: 0.5rem 1.2rem !important;
   margin: 0.1rem 0;
   border-radius: 999px;
-  border: 1px solid #ea580c !important;
-  background: linear-gradient(180deg, #fef9c3 0%, #fde68a 100%) !important;
+  border: 1px solid #f97316 !important;
+  background: linear-gradient(180deg, #fde047 0%, #fbbf24 52%, #f59e0b 100%) !important;
   box-shadow:
-    0 1px 0 color-mix(in srgb, #fff 70%, #fcd34d 30%) inset,
-    0 4px 16px rgba(0, 0, 0, 0.22);
-  animation: br-nav-cta-float 2.75s ease-in-out infinite, br-nav-cta-shadow 3.25s ease-in-out infinite;
+    0 1px 0 color-mix(in srgb, #fff 55%, #fef08a 45%) inset,
+    0 6px 26px rgba(0, 0, 0, 0.3),
+    0 0 0 1px color-mix(in srgb, #fbbf24 70%, transparent),
+    0 0 32px color-mix(in srgb, #fbbf24 50%, transparent);
+  transform: translateY(-2px);
   transition:
     background 0.32s cubic-bezier(0.33, 1, 0.68, 1),
     box-shadow 0.32s cubic-bezier(0.33, 1, 0.68, 1),
@@ -1461,63 +1426,58 @@ small,
 .br-sticky-header .nav-link.br-nav-cta .bi {
   display: inline-block;
   font-size: 1.08em;
-  color: #c2410c;
+  color: #9a3412;
   transform-origin: 50% 58%;
-  animation: br-nav-cta-icon-sway 4.5s ease-in-out infinite;
   transition: transform 0.28s ease, color 0.28s ease;
 }
 
 .br-sticky-header .nav-link.br-nav-cta:hover {
-  color: #1a0a03 !important;
-  background: linear-gradient(180deg, #fde047 0%, #fbbf24 52%, #f59e0b 100%) !important;
-  border-color: #f97316 !important;
+  color: #0f0502 !important;
+  background: linear-gradient(180deg, #fef08a 0%, #fcd34d 46%, #f59e0b 100%) !important;
+  border-color: #fb923c !important;
   box-shadow:
-    0 1px 0 color-mix(in srgb, #fff 55%, #fef08a 45%) inset,
-    0 6px 26px rgba(0, 0, 0, 0.3),
-    0 0 0 1px color-mix(in srgb, #fbbf24 70%, transparent),
-    0 0 32px color-mix(in srgb, #fbbf24 50%, transparent);
-  transform: translateY(-2px);
-  animation: none;
+    0 1px 0 color-mix(in srgb, #fff 65%, #fef08a 35%) inset,
+    0 8px 30px rgba(0, 0, 0, 0.36),
+    0 0 0 1px color-mix(in srgb, #fde047 90%, transparent),
+    0 0 44px color-mix(in srgb, #fbbf24 72%, transparent);
+  transform: translateY(-3px) scale(1.02);
 }
 
 .br-sticky-header .nav-link.br-nav-cta:hover .bi {
-  color: #9a3412;
-  animation: none;
-  transform: rotate(0deg);
+  color: #7c2d12;
+  transform: scale(1.06);
 }
 
 .br-sticky-header .nav-link.br-nav-cta:focus-visible {
-  color: #2a1206 !important;
+  color: #1a0a03 !important;
   outline: 2px solid #fbbf24 !important;
   outline-offset: 2px;
 }
 
 .br-sticky-header .nav-link.br-nav-cta:active {
-  animation: none;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
   transition-duration: 0.12s;
 }
 
 .br-sticky-header .nav-link.br-nav-cta:active .bi {
-  animation: none;
-  transform: rotate(0deg) translateY(1px);
+  transform: translateY(1px) scale(1);
   transition-duration: 0.12s;
 }
 
 .br-sticky-header .nav-link.br-nav-cta:hover:active {
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.01);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .br-sticky-header .nav-link.br-nav-cta {
-    animation: none;
-  }
-
-  .br-sticky-header .nav-link.br-nav-cta .bi {
-    animation: none;
+    transform: none;
   }
 
   .br-sticky-header .nav-link.br-nav-cta:hover {
+    transform: none;
+  }
+
+  .br-sticky-header .nav-link.br-nav-cta:hover .bi {
     transform: none;
   }
 
