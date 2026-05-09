@@ -14,6 +14,8 @@ import FeaturesPage from './pages/FeaturesPage.jsx';
 import BlogIndexPage from './pages/BlogIndexPage.jsx';
 import BlogPostPage from './pages/BlogPostPage.jsx';
 import TermsPage from './pages/TermsPage.jsx';
+import ContentStandardsPage from './pages/ContentStandardsPage.jsx';
+import StudyGuidesPage from './pages/StudyGuidesPage.jsx';
 import WhyBandReady from './pages/WhyBandReady.jsx';
 import PracticeDisclaimer from './pages/PracticeDisclaimer.jsx';
 import Analytics from './pages/Analytics.jsx';
@@ -105,6 +107,8 @@ export const router = createBrowserRouter([
       { path: 'features', element: <FeaturesPage /> },
       { path: 'blog', element: <BlogIndexPage /> },
       { path: 'blog/:slug', element: <BlogPostPage /> },
+      { path: 'guides', element: <StudyGuidesPage /> },
+      { path: 'content-standards', element: <ContentStandardsPage /> },
       { path: 'privacy-policy', element: <PrivacyPolicyPage /> },
       { path: 'terms', element: <TermsPage /> },
       { path: 'practice-disclaimer', element: <PracticeDisclaimer /> },

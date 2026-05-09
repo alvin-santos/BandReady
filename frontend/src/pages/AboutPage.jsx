@@ -17,6 +17,30 @@ export default function AboutPage() {
           timed sections, review results, and build confidence before test day.
         </p>
 
+        <div className="br-card p-4 mb-4">
+          <h2 className="h5 fw-bold mb-3">What you will find here</h2>
+          <p className="text-muted small mb-2">
+            The public site combines three kinds of value: <strong>software</strong> for timed runs and dashboards;{' '}
+            <strong>original guides</strong> on study routines and exam-style skills (see our{' '}
+            <Link to="/guides" className="fw-semibold text-decoration-none">
+              study guides
+            </Link>{' '}
+            and{' '}
+            <Link to="/blog" className="fw-semibold text-decoration-none">
+              blog
+            </Link>
+            ); and a <strong>community forum</strong> where learners share tips. Practice scores and AI suggestions are
+            for learning—they are not issued by IELTS or CELPIP and are not guarantees of official results.
+          </p>
+          <p className="text-muted small mb-0">
+            Our editorial approach—including how we label AI output and moderate user posts—is summarized on the{' '}
+            <Link to="/content-standards" className="fw-semibold text-decoration-none">
+              content standards
+            </Link>{' '}
+            page.
+          </p>
+        </div>
+
         <Row className="g-4 mb-4">
           <Col md={6}>
             <Card className="border-0 shadow-sm h-100 br-card">
@@ -56,8 +80,20 @@ export default function AboutPage() {
         </Row>
 
         <div className="br-card p-4 mb-4">
+          <h2 className="h5 fw-bold mb-3">How the site is funded</h2>
+          <p className="text-muted small mb-3">
+            BandReady is supported by optional subscriptions (BandReady Pro) and, on free tiers, advertising such as
+            Google AdSense where configured. Ads help cover hosting and development; they do not change how official
+            practice tasks are scored. Pro features may reduce promotional placements depending on product settings.
+          </p>
           <h2 className="h5 fw-bold mb-3">Transparency &amp; policies</h2>
           <ul className="text-muted small mb-0 ps-3">
+            <li className="mb-2">
+              <Link to="/content-standards" className="fw-semibold text-decoration-none">
+                Content standards
+              </Link>{' '}
+              — editorial quality, AI disclosure, and forum expectations.
+            </li>
             <li className="mb-2">
               <Link to="/privacy-policy" className="fw-semibold text-decoration-none">
                 Privacy Policy

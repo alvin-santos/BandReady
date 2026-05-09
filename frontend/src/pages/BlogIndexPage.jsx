@@ -99,7 +99,78 @@ export default function BlogIndexPage() {
           </div>
         )}
 
-        {!loading && !err && (
+        {!loading && !err && items.length === 0 && (
+          <div className="mb-4">
+            <Alert variant="light" className="border mb-4">
+              <strong>No articles published yet.</strong> In the meantime, these pages contain substantial prep guidance
+              written for BandReady visitors:
+            </Alert>
+            <Row className="g-4">
+              <Col md={6}>
+                <Card className="border-0 shadow-sm h-100 br-card">
+                  <Card.Body className="p-4">
+                    <h2 className="h6 fw-bold mb-2">Study guides</h2>
+                    <p className="text-muted small mb-3">
+                      Long-form guidance on choosing an exam, timed practice habits, weekly rhythm, and responsible use of
+                      AI feedback.
+                    </p>
+                    <Link to="/guides" className="fw-semibold text-decoration-none text-br-rose">
+                      Open study guides
+                      <i className="bi bi-arrow-right ms-1" aria-hidden />
+                    </Link>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={6}>
+                <Card className="border-0 shadow-sm h-100 br-card">
+                  <Card.Body className="p-4">
+                    <h2 className="h6 fw-bold mb-2">How BandReady works</h2>
+                    <p className="text-muted small mb-3">
+                      Step-by-step overview of the study plan flow, practice sessions, and feedback loops—useful even
+                      before blog posts go live.
+                    </p>
+                    <Link to="/how-it-works" className="fw-semibold text-decoration-none text-br-rose">
+                      How it works
+                      <i className="bi bi-arrow-right ms-1" aria-hidden />
+                    </Link>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={6}>
+                <Card className="border-0 shadow-sm h-100 br-card">
+                  <Card.Body className="p-4">
+                    <h2 className="h6 fw-bold mb-2">Content standards</h2>
+                    <p className="text-muted small mb-3">
+                      How we label practice versus official exams, handle AI-assisted tools, and moderate community
+                      content.
+                    </p>
+                    <Link to="/content-standards" className="fw-semibold text-decoration-none text-br-rose">
+                      Read content standards
+                      <i className="bi bi-arrow-right ms-1" aria-hidden />
+                    </Link>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={6}>
+                <Card className="border-0 shadow-sm h-100 br-card">
+                  <Card.Body className="p-4">
+                    <h2 className="h6 fw-bold mb-2">Why BandReady exists</h2>
+                    <p className="text-muted small mb-3">
+                      Product philosophy: realistic pacing, transparent disclaimers, and practice that respects official
+                      test boundaries.
+                    </p>
+                    <Link to="/why-bandready" className="fw-semibold text-decoration-none text-br-rose">
+                      Why BandReady
+                      <i className="bi bi-arrow-right ms-1" aria-hidden />
+                    </Link>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          </div>
+        )}
+
+        {!loading && !err && items.length > 0 && (
           <Row className="g-4">
           {items.map((p) => (
             <Col key={p.slug} md={6} lg={4}>

@@ -22,6 +22,16 @@ const EXACT = {
     description:
       'Read BandReady’s blog for CELPIP and IELTS preparation: study plans, speaking structure, writing improvement, exam strategy, and practice routines.',
   },
+  '/guides': {
+    title: 'Study guides — CELPIP & IELTS preparation',
+    description:
+      'In-depth BandReady study guides: choosing CELPIP vs IELTS General, timed practice habits, weekly prep rhythm, and using AI feedback responsibly.',
+  },
+  '/content-standards': {
+    title: 'Content standards — BandReady editorial policy',
+    description:
+      'How BandReady handles editorial quality, practice materials, AI-assisted features, forum content, and advertising—independent exam preparation.',
+  },
   '/why-bandready': {
     title: 'Why BandReady?',
     description:

@@ -183,8 +183,12 @@ export default function Home() {
                 Prefer to explore first? Start with{' '}
                 <Link to="/how-it-works" className="fw-semibold text-decoration-none">
                   how it works
-                </Link>{' '}
-                or read the{' '}
+                </Link>
+                , browse the{' '}
+                <Link to="/guides" className="fw-semibold text-decoration-none">
+                  study guides
+                </Link>
+                , or read the{' '}
                 <Link to="/blog" className="fw-semibold text-decoration-none">
                   blog
                 </Link>

@@ -1494,6 +1494,13 @@ small,
   margin-left: 0.35rem;
 }
 
+/* Desktop: keep primary nav on one row (logged-in users have many items). */
+@media (min-width: 992px) {
+  .br-main-nav.navbar-nav {
+    flex-wrap: nowrap !important;
+  }
+}
+
 @media (max-width: 991.98px) {
   .br-main-nav {
     padding-top: 0.5rem;
@@ -2200,4 +2207,14 @@ small,
   border-radius: 0.35rem;
   padding: 0.2rem 0.35rem;
   font-size: 0.85rem;
+}
+
+/* Cookie notice — fixed above page chrome; keep below Bootstrap modal (1050). */
+.br-cookie-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1035;
+  background: var(--br-elevated);
 }

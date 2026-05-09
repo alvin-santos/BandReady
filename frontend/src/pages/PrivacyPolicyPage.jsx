@@ -1,7 +1,7 @@
 import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
-const LAST_UPDATED = 'April 27, 2026';
+const LAST_UPDATED = 'May 9, 2026';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -64,6 +64,10 @@ export default function PrivacyPolicyPage() {
         <p className="text-body-secondary mb-2">
           We use cookies and local storage as needed for sign-in sessions, preferences, and the anonymous visitor id
           described above. Third-party services (such as advertising or embedded tools) may also set cookies.
+        </p>
+        <p className="text-body-secondary mb-2">
+          When you first visit, you may see a cookie notice banner with a link to this policy and an option to accept.
+          Accepting stores your choice in the browser so we do not repeat the prompt on every page.
         </p>
         <p className="text-body-secondary mb-0">
           You can control cookies through your browser settings. Blocking required cookies may prevent sign-in or core
@@ -194,6 +198,10 @@ export default function PrivacyPolicyPage() {
         <h2 className="h5 fw-bold text-body mb-2">14. Related pages</h2>
         <p className="text-body-secondary mb-0">
           <Link to="/about">About BandReady</Link>
+          {' · '}
+          <Link to="/guides">Study guides</Link>
+          {' · '}
+          <Link to="/content-standards">Content standards</Link>
           {' · '}
           <Link to="/terms">Terms</Link>
           {' · '}
