@@ -6,6 +6,8 @@ import {
   isExamStyleEnglishVoice,
   stableVoiceKey,
 } from '../utils/ttsDialogue.js';
+import { getLiveSpeechVoices, waitForSpeechVoices } from '../utils/ttsSpeechSynthesis.js';
+import { previewBrowserTtsVoice } from '../utils/ttsSpeak.js';
 import { clearTtsDisabledVoiceKeysCache } from '../utils/ttsVoiceSettingsCache.js';
 
 const VOICE_PREVIEW_TEXT =
@@ -72,8 +74,9 @@ export default function TtsVoicesSettingsPage({ variant }) {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       return;
     }
-    const sync = () => setVoices(window.speechSynthesis.getVoices() ?? []);
+    const sync = () => setVoices(getLiveSpeechVoices());
     sync();
+    void waitForSpeechVoices().then(sync);
     window.speechSynthesis.addEventListener('voiceschanged', sync);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', sync);
   }, []);
@@ -107,19 +110,18 @@ export default function TtsVoicesSettingsPage({ variant }) {
       window.speechSynthesis.cancel();
       previewActiveKeyRef.current = key;
       setPreviewingKey(key);
-      const u = new SpeechSynthesisUtterance(VOICE_PREVIEW_TEXT);
-      u.voice = voice;
-      u.lang = voice.lang || 'en-US';
-      u.rate = 0.95;
       const done = () => {
         if (previewActiveKeyRef.current === key) {
           previewActiveKeyRef.current = null;
           setPreviewingKey(null);
         }
       };
-      u.onend = done;
-      u.onerror = done;
-      window.speechSynthesis.speak(u);
+      previewBrowserTtsVoice(voice, getLiveSpeechVoices(), {
+        text: VOICE_PREVIEW_TEXT,
+        rate: 0.95,
+        lang: voice.lang || 'en-US',
+        onEnd: done,
+      });
     },
     [previewingKey, stopVoicePreview]
   );

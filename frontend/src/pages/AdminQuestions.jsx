@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Form, Modal, Spinner, Table } from 'react-bootstrap';
 import { api } from '../api/client.js';
 import { spokenPlainTextFromScript } from '../utils/ttsDialogue.js';
+import { getLiveSpeechVoices } from '../utils/ttsSpeechSynthesis.js';
 import { speakDialogueScript } from '../utils/ttsSpeak.js';
 import { getTtsDisabledVoiceKeysSet } from '../utils/ttsVoiceSettingsCache.js';
 import { resolveMediaUrl } from '../utils/mediaUrl.js';
@@ -58,6 +59,7 @@ export default function AdminQuestions() {
   );
   const ttsVoicesRef = useRef(ttsVoices);
   ttsVoicesRef.current = ttsVoices;
+  const ttsDisabledKeysRef = useRef(new Set());
 
   useEffect(() => {
     api.get('/admin/tests').then((res) => setTests(res.data));
@@ -67,10 +69,20 @@ export default function AdminQuestions() {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       return;
     }
-    const load = () => setTtsVoices(window.speechSynthesis.getVoices() ?? []);
+    const load = () => {
+      const list = getLiveSpeechVoices();
+      setTtsVoices(list);
+      ttsVoicesRef.current = list;
+    };
     load();
     window.speechSynthesis.addEventListener('voiceschanged', load);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
+  }, []);
+
+  useEffect(() => {
+    void getTtsDisabledVoiceKeysSet().then((set) => {
+      ttsDisabledKeysRef.current = set;
+    });
   }, []);
 
   async function load() {
@@ -104,7 +116,7 @@ export default function AdminQuestions() {
     }
   }, [show]);
 
-  const previewTtsScript = useCallback(async () => {
+  const previewTtsScript = useCallback(() => {
     const plain = spokenPlainTextFromScript(form.audio_script);
     if (!plain || typeof window === 'undefined') {
       return;
@@ -113,10 +125,22 @@ export default function AdminQuestions() {
       window.alert('Speech synthesis is not available in this browser.');
       return;
     }
+    const liveVoices = getLiveSpeechVoices();
+    if (liveVoices.length) {
+      ttsVoicesRef.current = liveVoices;
+    }
     window.speechSynthesis.cancel();
     setTtsPreviewPlaying(true);
-    const disabled = await getTtsDisabledVoiceKeysSet();
-    speakDialogueScript(form.audio_script, ttsVoicesRef.current, 'en-US', () => setTtsPreviewPlaying(false), disabled);
+    speakDialogueScript(
+      form.audio_script,
+      ttsVoicesRef.current,
+      'en-US',
+      () => setTtsPreviewPlaying(false),
+      ttsDisabledKeysRef.current
+    );
+    void getTtsDisabledVoiceKeysSet().then((set) => {
+      ttsDisabledKeysRef.current = set;
+    });
   }, [form.audio_script]);
 
   const stopTtsPreview = useCallback(() => {

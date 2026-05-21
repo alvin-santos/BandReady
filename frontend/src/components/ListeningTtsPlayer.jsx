@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from 'react-bootstrap';
 import { spokenPlainTextFromScript } from '../utils/ttsDialogue.js';
+import { getLiveSpeechVoices, waitForSpeechVoices } from '../utils/ttsSpeechSynthesis.js';
 import { speakDialogueScript } from '../utils/ttsSpeak.js';
 import { getTtsDisabledVoiceKeysSet } from '../utils/ttsVoiceSettingsCache.js';
 
@@ -46,6 +47,8 @@ export default function ListeningTtsPlayer({
   );
   const voicesRef = useRef(voices);
   voicesRef.current = voices;
+  /** Prefetched so Play can call `speak()` synchronously (async before speak breaks Chromium user-gesture audio). */
+  const disabledVoiceKeysRef = useRef(new Set());
   /** Bumps on stop / question change so a cancelled clip does not count as “finished”. */
   const playbackGenRef = useRef(0);
   /** Set to true in stop() so {@link speakDialogueScript} does not chain after cancel(). */
@@ -56,11 +59,22 @@ export default function ListeningTtsPlayer({
       setSupported(false);
       return;
     }
-    const load = () => setVoices(window.speechSynthesis.getVoices() ?? []);
+    const load = () => {
+      const list = getLiveSpeechVoices();
+      setVoices(list);
+      voicesRef.current = list;
+    };
     load();
+    void waitForSpeechVoices().then(load);
     window.speechSynthesis.addEventListener('voiceschanged', load);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
   }, []);
+
+  useEffect(() => {
+    void getTtsDisabledVoiceKeysSet().then((set) => {
+      disabledVoiceKeysRef.current = set;
+    });
+  }, [utteranceKey]);
 
   useEffect(() => {
     return () => {
@@ -95,27 +109,31 @@ export default function ListeningTtsPlayer({
     if (!plain || typeof window === 'undefined' || !window.speechSynthesis) {
       return;
     }
-    void (async () => {
-      const disabled = await getTtsDisabledVoiceKeysSet();
-      cancelPlaybackRef.current = false;
-      window.speechSynthesis.cancel();
-      playbackGenRef.current += 1;
-      const gen = playbackGenRef.current;
-      setPlaying(true);
-      speakDialogueScript(
-        script,
-        voicesRef.current,
-        lang,
-        () => {
-          setPlaying(false);
-          if (playbackGenRef.current === gen && !cancelPlaybackRef.current) {
-            onListenComplete?.();
-          }
-        },
-        disabled,
-        cancelPlaybackRef
-      );
-    })();
+    const liveVoices = getLiveSpeechVoices();
+    if (liveVoices.length) {
+      voicesRef.current = liveVoices;
+    }
+    cancelPlaybackRef.current = false;
+    window.speechSynthesis.cancel();
+    playbackGenRef.current += 1;
+    const gen = playbackGenRef.current;
+    setPlaying(true);
+    speakDialogueScript(
+      script,
+      voicesRef.current,
+      lang,
+      () => {
+        setPlaying(false);
+        if (playbackGenRef.current === gen && !cancelPlaybackRef.current) {
+          onListenComplete?.();
+        }
+      },
+      disabledVoiceKeysRef.current,
+      cancelPlaybackRef
+    );
+    void getTtsDisabledVoiceKeysSet().then((set) => {
+      disabledVoiceKeysRef.current = set;
+    });
   }, [script, lang, onListenComplete]);
 
   const stop = useCallback(() => {

@@ -7,6 +7,9 @@ import {
   spokenPlainTextFromScript,
   stableVoiceKey,
 } from './ttsDialogue.js';
+import { getLiveSpeechVoices, resolveVoiceFromLiveList, speakSpeechUtterances } from './ttsSpeechSynthesis.js';
+
+export { resolveVoiceFromLiveList };
 
 /** Chromium stalls less on several short utterances than one very long string (same voice). */
 const TTS_CHUNK_MAX_CHARS = 320;
@@ -77,19 +80,6 @@ function splitTextIntoTtsChunks(text, maxChars = TTS_CHUNK_MAX_CHARS) {
 }
 
 /**
- * Browsers often ignore `utterance.voice` unless it is the same object instance as in `getVoices()`.
- * @param {SpeechSynthesisVoice | null | undefined} voice
- * @param {SpeechSynthesisVoice[]} voicesList
- */
-function resolveVoiceFromLiveList(voice, voicesList) {
-  if (!voice || !voicesList?.length) {
-    return voice ?? null;
-  }
-  const key = stableVoiceKey(voice);
-  return voicesList.find((v) => stableVoiceKey(v) === key) ?? voice;
-}
-
-/**
  * Speak script with dialogue-aware voices (randomized English pool; distinct voice per speaker when possible).
  * @param {string} script
  * @param {SpeechSynthesisVoice[]} voicesList
@@ -110,19 +100,20 @@ export function speakDialogueScript(script, voicesList, lang, onComplete, disabl
 
   const segments = parseDialogueUtterances(script);
   const speakers = [...new Set(segments.map((s) => s.speaker).filter(Boolean))];
-  const dialoguePool = buildDialogueVoicePool(voicesList, disabledVoiceKeys, 2);
+  const liveVoices = voicesList?.length ? voicesList : getLiveSpeechVoices();
+  const dialoguePool = buildDialogueVoicePool(liveVoices, disabledVoiceKeys, 2);
 
   window.speechSynthesis.cancel();
 
   if (speakers.length >= 2 && dialoguePool.length >= 2) {
-    const voiceMap = mapSpeakersToVoices(segments, voicesList, lang, disabledVoiceKeys, dialoguePool);
+    const voiceMap = mapSpeakersToVoices(segments, liveVoices, lang, disabledVoiceKeys, dialoguePool);
     /** Queue every utterance in one go — Chrome/Edge often insert huge gaps when chaining {@link SpeechSynthesisUtterance} via `onend` → `speak()` with different voices. */
     /** @type {SpeechSynthesisUtterance[]} */
     const utterances = [];
     for (let idx = 0; idx < segments.length; idx++) {
       const { speaker, text } = segments[idx];
       const mapped = speaker ? voiceMap.get(speaker) : voiceMap.get('__default__');
-      const voice = resolveVoiceFromLiveList(mapped, voicesList);
+      const voice = resolveVoiceFromLiveList(mapped, liveVoices);
       const chunks = splitTextIntoTtsChunks(text)
         .map((x) => x.trim())
         .filter(Boolean);
@@ -157,28 +148,19 @@ export function speakDialogueScript(script, voicesList, lang, onComplete, disabl
       return;
     }
     if (!cancelled.current) {
-      try {
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-      } catch {
-        /* ignore */
-      }
-      for (const u of utterances) {
-        window.speechSynthesis.speak(u);
-      }
+      speakSpeechUtterances(utterances);
     }
   } else {
-    const enPool = buildEnglishVoicePool(voicesList, disabledVoiceKeys);
+    const enPool = buildEnglishVoicePool(liveVoices, disabledVoiceKeys);
     let pick =
       enPool.length > 0 ? enPool[Math.floor(Math.random() * enPool.length)] : null;
-    if (!pick && voicesList.length) {
-      const allowed = voicesList.filter((v) => !disabledVoiceKeys?.has(stableVoiceKey(v)));
+    if (!pick && liveVoices.length) {
+      const allowed = liveVoices.filter((v) => !disabledVoiceKeys?.has(stableVoiceKey(v)));
       if (allowed.length > 0) {
         pick = allowed[Math.floor(Math.random() * allowed.length)];
       }
     }
-    const live = pick ? resolveVoiceFromLiveList(pick, voicesList) : null;
+    const live = pick ? resolveVoiceFromLiveList(pick, liveVoices) : null;
     const chunks = splitTextIntoTtsChunks(plain)
       .map((x) => x.trim())
       .filter(Boolean);
@@ -216,16 +198,7 @@ export function speakDialogueScript(script, voicesList, lang, onComplete, disabl
       utterances.push(u);
     }
     if (!cancelled.current && utterances.length > 0) {
-      try {
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-      } catch {
-        /* ignore */
-      }
-      for (const u of utterances) {
-        window.speechSynthesis.speak(u);
-      }
+      speakSpeechUtterances(utterances);
     }
   }
 }
@@ -251,21 +224,22 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
 
   window.speechSynthesis.cancel();
 
+  const liveVoices = voicesList?.length ? voicesList : getLiveSpeechVoices();
   let pick = stableVoiceRef.current;
   const prefKey = typeof options?.preferredVoiceKey === 'string' ? options.preferredVoiceKey.trim() : '';
   if (prefKey !== '') {
-    const found = voicesList.find((v) => stableVoiceKey(v) === prefKey);
+    const found = liveVoices.find((v) => stableVoiceKey(v) === prefKey);
     if (found && !disabledVoiceKeys?.has(prefKey)) {
-      pick = resolveVoiceFromLiveList(found, voicesList);
+      pick = resolveVoiceFromLiveList(found, liveVoices);
       stableVoiceRef.current = pick;
     }
   }
   if (!pick) {
-    const enPool = buildEnglishVoicePool(voicesList, disabledVoiceKeys);
+    const enPool = buildEnglishVoicePool(liveVoices, disabledVoiceKeys);
     if (enPool.length > 0) {
       pick = enPool[Math.floor(Math.random() * enPool.length)];
-    } else if (voicesList.length) {
-      const allowed = voicesList.filter((v) => !disabledVoiceKeys?.has(stableVoiceKey(v)));
+    } else if (liveVoices.length) {
+      const allowed = liveVoices.filter((v) => !disabledVoiceKeys?.has(stableVoiceKey(v)));
       if (allowed.length > 0) {
         pick = allowed[Math.floor(Math.random() * allowed.length)];
       }
@@ -290,7 +264,9 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
     onComplete?.();
     return;
   }
-  const live = resolveVoiceFromLiveList(pick, voicesList);
+  const live = resolveVoiceFromLiveList(pick, liveVoices);
+  /** @type {SpeechSynthesisUtterance[]} */
+  const stableUtterances = [];
   for (let ci = 0; ci < chunks.length; ci++) {
     const u = new SpeechSynthesisUtterance(chunks[ci]);
     const v = live ?? pick;
@@ -306,8 +282,9 @@ export function speakWithStableEnglishVoice(text, voicesList, lang, onComplete, 
       u.onend = () => onComplete?.();
       u.onerror = () => onComplete?.();
     }
-    window.speechSynthesis.speak(u);
+    stableUtterances.push(u);
   }
+  speakSpeechUtterances(stableUtterances);
 }
 
 const DEFAULT_VOICE_PREVIEW_TEXT =
@@ -332,7 +309,8 @@ export function previewBrowserTtsVoice(voice, voicesList, options) {
 
   window.speechSynthesis.cancel();
 
-  const live = resolveVoiceFromLiveList(voice, voicesList);
+  const liveVoices = voicesList?.length ? voicesList : getLiveSpeechVoices();
+  const live = resolveVoiceFromLiveList(voice, liveVoices);
   const u = new SpeechSynthesisUtterance(text);
   if (live) {
     u.voice = live;
@@ -346,5 +324,5 @@ export function previewBrowserTtsVoice(voice, voicesList, options) {
   };
   u.onend = done;
   u.onerror = done;
-  window.speechSynthesis.speak(u);
+  speakSpeechUtterances(u);
 }
