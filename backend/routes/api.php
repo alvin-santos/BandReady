@@ -69,6 +69,8 @@ Route::post('/subscription/webhook', StripeWebhookController::class)
 
 Route::get('/tts-voice-settings', [TtsVoiceSettingsController::class, 'publicIndex']);
 Route::get('/bandie-tutor-settings', [BandieTutorSettingsController::class, 'publicIndex']);
+/** Pricing / Stripe flags — public so the subscription page can show checkout info before login. */
+Route::get('/subscription/offer', [SubscriptionController::class, 'offer']);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -93,8 +95,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/email/resend-verification', [AuthController::class, 'resendVerificationEmail'])
         ->middleware('throttle:6,1');
-    /** Pricing / Stripe flags — any signed-in user (verified not required). */
-    Route::get('/subscription/offer', [SubscriptionController::class, 'offer']);
 });
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {

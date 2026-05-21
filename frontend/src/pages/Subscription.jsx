@@ -45,17 +45,13 @@ export default function Subscription() {
   const simulateEnabled = Boolean(offer?.simulate_enabled);
 
   const loadOffer = useCallback(async () => {
-    if (!user) {
-      setOffer(null);
-      return;
-    }
     try {
       const { data } = await api.get('/subscription/offer');
       setOffer(data);
     } catch {
       setOffer({ stripe_checkout_enabled: false, simulate_enabled: false, price: {} });
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     void loadOffer();
@@ -300,9 +296,13 @@ export default function Subscription() {
           </Button>
         )}
         <p className="small text-muted mt-3 mb-0 mx-auto" style={{ maxWidth: '36rem' }}>
-          {stripeEnabled
-            ? 'You will leave this site briefly to enter card details on Stripe. We never store your full card number.'
-            : 'Stripe is not configured on this server yet — set STRIPE_SECRET and STRIPE_PRICE_ID (and webhook secret for production).'}
+          {stripeEnabled ? (
+            user
+              ? 'You will leave this site briefly to enter card details on Stripe. We never store your full card number.'
+              : 'After you log in, checkout uses Stripe — we never store your full card number.'
+          ) : (
+            'Stripe is not configured on this server yet — set STRIPE_SECRET and STRIPE_PRICE_ID (and webhook secret for production).'
+          )}
         </p>
       </div>
 
