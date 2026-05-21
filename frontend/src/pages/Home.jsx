@@ -364,7 +364,7 @@ export default function Home() {
           </Col>
         </Row>
 
-        <div className="br-card p-4 mb-4">
+        {/* <div className="br-card p-4 mb-4">
           <h2 className="h4 fw-bold mb-3 d-flex align-items-center gap-2">
             <i className="bi bi-diagram-3 text-br-rose" aria-hidden />
             How it works (step-by-step)
@@ -395,9 +395,9 @@ export default function Home() {
             </Link>
             .
           </p>
-        </div>
+        </div> */}
 
-        <div className="br-card p-4 mb-4">
+        {/* <div className="br-card p-4 mb-4">
           <h2 className="h4 fw-bold mb-3 d-flex align-items-center gap-2">
             <i className="bi bi-ui-checks-grid text-br-rose" aria-hidden />
             Features
@@ -431,9 +431,9 @@ export default function Home() {
             </Link>{' '}
             page.
           </p>
-        </div>
+        </div> */}
 
-        <Row className="g-4 mb-4">
+        {/* <Row className="g-4 mb-4">
           <Col lg={6}>
             <div className="br-card p-4 h-100">
               <h2 className="h4 fw-bold mb-3 d-flex align-items-center gap-2">
@@ -502,7 +502,7 @@ export default function Home() {
               </p>
             </div>
           </Col>
-        </Row>
+        </Row> */}
 
         <div className="br-card p-4 mb-0">
           <h2 className="h4 fw-bold mb-3 d-flex align-items-center gap-2">

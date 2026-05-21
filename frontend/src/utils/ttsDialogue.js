@@ -286,12 +286,34 @@ export function preprocessScript(raw) {
 }
 
 /**
+ * True when the script uses dialogue labels with a colon (per line or inline), not plain narration only.
+ * @param {string} body preprocessed script body
+ */
+export function scriptHasDialogueMarkup(body) {
+  const text = String(body ?? '').trim();
+  if (!text) {
+    return false;
+  }
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (SPEAKER_LINE.test(trimmed)) {
+      return true;
+    }
+  }
+  const inlineRole = new RegExp('(?:' + DIALOGUE_ROLE_ALTERNATION + ')\\s*[:：]\\s*\\S', 'i');
+  return inlineRole.test(text);
+}
+
+/**
  * @typedef {{ speaker: string | null, text: string }} DialogueSegment
- * @param {string} script
+ * @param {string} body preprocessed script (see {@link preprocessScript})
  * @returns {DialogueSegment[]}
  */
-export function parseDialogueUtterances(script) {
-  const body = preprocessScript(script);
+function parseDialogueUtterancesFromBody(body) {
   if (!body) {
     return [];
   }
@@ -331,12 +353,43 @@ export function parseDialogueUtterances(script) {
 }
 
 /**
+ * @param {string} script
+ * @returns {DialogueSegment[]}
+ */
+export function parseDialogueUtterances(script) {
+  return parseDialogueUtterancesFromBody(preprocessScript(script));
+}
+
+/**
+ * Plain narration (no `Speaker:` lines) is read as one clip; dialogue scripts use role voices.
+ * @param {string} script
+ * @returns {DialogueSegment[]}
+ */
+export function parseScriptForTts(script) {
+  const body = preprocessScript(script);
+  if (!body) {
+    return [];
+  }
+  if (!scriptHasDialogueMarkup(body)) {
+    const stripped = body
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0 && !/^narrator$/i.test(l))
+      .join(' ')
+      .trim();
+    const text = normalizeSpeechFragmentForBrowserTts(stripped);
+    return text ? [{ speaker: null, text }] : [];
+  }
+  return parseDialogueUtterancesFromBody(body);
+}
+
+/**
  * All spoken words only (no role names), for single-voice fallback and empty checks.
  * @param {string} script
  * @returns {string}
  */
 export function spokenPlainTextFromScript(script) {
-  return parseDialogueUtterances(script)
+  return parseScriptForTts(script)
     .map((s) => s.text)
     .join(' ')
     .trim();

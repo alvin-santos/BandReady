@@ -6,7 +6,7 @@ import {
   isExamStyleEnglishVoice,
   stableVoiceKey,
 } from '../utils/ttsDialogue.js';
-import { getLiveSpeechVoices, waitForSpeechVoices } from '../utils/ttsSpeechSynthesis.js';
+import { cancelSpeechSynthesis, getLiveSpeechVoices, waitForSpeechVoices } from '../utils/ttsSpeechSynthesis.js';
 import { previewBrowserTtsVoice } from '../utils/ttsSpeak.js';
 import { clearTtsDisabledVoiceKeysCache } from '../utils/ttsVoiceSettingsCache.js';
 
@@ -83,17 +83,13 @@ export default function TtsVoicesSettingsPage({ variant }) {
 
   useEffect(() => {
     return () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      cancelSpeechSynthesis();
       previewActiveKeyRef.current = null;
     };
   }, []);
 
   const stopVoicePreview = useCallback(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    cancelSpeechSynthesis();
     previewActiveKeyRef.current = null;
     setPreviewingKey(null);
   }, []);
@@ -107,7 +103,7 @@ export default function TtsVoicesSettingsPage({ variant }) {
         stopVoicePreview();
         return;
       }
-      window.speechSynthesis.cancel();
+      cancelSpeechSynthesis();
       previewActiveKeyRef.current = key;
       setPreviewingKey(key);
       const done = () => {

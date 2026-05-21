@@ -245,9 +245,9 @@ export default function Rankings() {
                     <td className="fw-semibold">{row.rank}</td>
                     <td>
                       {row.display_name}
-                      {row.is_fake && (
+                      {/* {row.is_fake && (
                         <span className="badge bg-secondary bg-opacity-25 text-secondary ms-2 small">Demo</span>
-                      )}
+                      )} */}
                       {row.is_you && (
                         <span className="badge bg-primary ms-2 small">You</span>
                       )}

@@ -9,7 +9,7 @@ export default function ExamTtsVoiceRailNote({ user }) {
   const signedIn = Boolean(user);
 
   return (
-    <div className="br-card p-3 mb-3 small border border-secondary border-opacity-25">
+    <div className="br-card p-3 mt-3 mb-3 small border border-secondary border-opacity-25">
       <div className="fw-semibold mb-2 d-flex align-items-center gap-2 text-body-secondary">
         <i className="bi bi-mic" aria-hidden />
         Listening voices
