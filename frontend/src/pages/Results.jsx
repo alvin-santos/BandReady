@@ -5,6 +5,7 @@ import { api } from '../api/client.js';
 import { resolveMediaUrl } from '../utils/mediaUrl.js';
 import AdSlot from '../components/AdSlot.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { pickAdFromResponse } from '../utils/pickAdFromResponse.js';
 import { formatIeltsAiTranscriptForDisplay } from '../utils/ieltsAiSpeaking.js';
 
 function WritingScoresExplainer() {
@@ -193,12 +194,8 @@ export default function Results() {
         api.get('/ads', { params: { location: 'results_a' } }),
         api.get('/ads', { params: { location: 'results_b' } }),
       ]);
-      const pick = (list) => {
-        const data = list.data || [];
-        return data.find((a) => a.active) || data[0] || null;
-      };
-      setAdA(pick(ra));
-      setAdB(pick(rb));
+      setAdA(pickAdFromResponse(ra));
+      setAdB(pickAdFromResponse(rb));
     })();
   }, [isSubscribed, isAdmin]);
 

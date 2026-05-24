@@ -1,7 +1,9 @@
-/** First active ad, else first row — for public /ads responses */
+import { isDisplayableAd } from './adDisplay.js';
+
+/** First displayable ad from a public /ads array. */
 export function pickAd(list) {
   if (!Array.isArray(list) || list.length === 0) {
     return null;
   }
-  return list.find((a) => a.active) || list[0] || null;
+  return list.find((a) => isDisplayableAd(a)) || null;
 }

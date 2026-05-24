@@ -6,6 +6,7 @@ import AdSlot from '../components/AdSlot.jsx';
 import HomeFloatingFeatureCards from '../components/HomeFloatingFeatureCards.jsx';
 import PracticeDisclaimerCallout from '../components/PracticeDisclaimerCallout.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { pickAdFromResponse } from '../utils/pickAdFromResponse.js';
 
 /** @param {{ code?: string }} exam */
 function iconForExam(exam) {
@@ -82,8 +83,7 @@ export default function Home() {
       return;
     }
     api.get('/ads', { params: { location: 'top_banner' } }).then((res) => {
-      const list = res.data || [];
-      setTopAd(list.find((a) => a.active) || list[0] || null);
+      setTopAd(pickAdFromResponse(res));
     });
   }, [isSubscribed, isAdmin]);
 

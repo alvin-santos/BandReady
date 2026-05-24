@@ -86,9 +86,14 @@ export default function ContactAbout() {
                 <i className="bi bi-envelope-paper text-br-rose" aria-hidden />
                 Contact
               </h2>
-              <p className="small text-muted mb-4">
+              <p className="small text-muted mb-3">
                 Have a question or need help with BandReady? Send a message—guests are welcome. If you are logged in,
                 we may attach your account for context.
+              </p>
+              <p className="small text-muted mb-4 pb-3 border-bottom">
+                <i className="bi bi-badge-ad text-br-rose me-1" aria-hidden />
+                <strong className="text-body">Advertising:</strong> BandReady is open to sponsorship and display ads.
+                Mention your company, preferred placement, and goals in your message below.
               </p>
               {done ? (
                 <Alert variant="success" className="border-0 mb-0">

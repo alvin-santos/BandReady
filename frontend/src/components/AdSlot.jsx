@@ -1,6 +1,7 @@
 import { Card } from 'react-bootstrap';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { isDisplayableAd } from '../utils/adDisplay.js';
 
 const SIZES = {
   top_banner: { minHeight: 90, maxWidth: 728, label: '728 × 90' },
@@ -52,6 +53,11 @@ export default function AdSlot({ location, ad, surface = 'default' }) {
         </div>
       </div>
     );
+  }
+
+  /** Disabled in admin, missing slot, or no image/link/script — hide placeholder. */
+  if (!isDisplayableAd(ad)) {
+    return null;
   }
   const isForum = surface === 'forum';
   const wrapClass = `ad-slot mb-3${isForum ? ' ad-slot--forum' : ''}`;

@@ -63,9 +63,14 @@ export default function SiteFooter() {
                   Rankings
                 </Link>
               </li>
-              <li className="mb-0">
+              <li className="mb-1">
                 <Link to="/contact" className="link-secondary text-decoration-none">
                   Contact
+                </Link>
+              </li>
+              <li className="mb-0">
+                <Link to="/contact" className="link-secondary text-decoration-none">
+                  Advertise with us
                 </Link>
               </li>
             </ul>
@@ -112,6 +117,27 @@ export default function SiteFooter() {
             </p>
           </Col>
         </Row>
+        <div
+          className="rounded-3 border px-3 py-3 mb-3 small"
+          style={{
+            borderColor: 'color-mix(in srgb, var(--br-blush-edge) 35%, var(--br-border))',
+            background: 'color-mix(in srgb, var(--br-rose) 6%, var(--bs-body-bg))',
+          }}
+        >
+          <div className="d-flex flex-wrap align-items-start gap-2">
+            <i className="bi bi-badge-ad-fill text-br-rose flex-shrink-0 mt-1" aria-hidden />
+            <div>
+              <p className="fw-semibold text-body mb-1 mb-sm-0 d-sm-inline me-sm-1">Open for advertising</p>
+              <span className="text-muted">
+                BandReady welcomes sponsors and display ads from education partners and related brands.{' '}
+                <Link to="/contact" className="fw-semibold text-decoration-none">
+                  Contact us
+                </Link>{' '}
+                to discuss placements on practice pages, rankings, the forum, and other slots.
+              </span>
+            </div>
+          </div>
+        </div>
         <AppDisclaimer />
       </Container>
     </footer>

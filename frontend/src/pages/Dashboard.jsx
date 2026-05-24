@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import AdSlot from '../components/AdSlot.jsx';
+import { pickAdFromResponse } from '../utils/pickAdFromResponse.js';
 import ReadinessCard from '../components/ReadinessCard.jsx';
 
 export default function Dashboard() {
@@ -19,8 +20,7 @@ export default function Dashboard() {
       return;
     }
     api.get('/ads', { params: { location: 'dashboard' } }).then((res) => {
-      const list = res.data || [];
-      setDashboardAd(list.find((a) => a.active) || list[0] || null);
+      setDashboardAd(pickAdFromResponse(res));
     });
   }, [isSubscribed, isAdmin]);
 

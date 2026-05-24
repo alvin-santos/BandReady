@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setGuestSession } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import AdSlot from '../components/AdSlot.jsx';
+import { pickAd } from '../utils/pickAd.js';
 import PracticeDisclaimerCallout from '../components/PracticeDisclaimerCallout.jsx';
 
 /** Full mock tests only (quick practice removed from UI). */
@@ -186,7 +187,11 @@ export default function ExamStart() {
     };
   }, [examId]);
 
-  const sidebarAd = useMemo(() => ads.find((a) => a.location === 'sidebar'), [ads]);
+  const sidebarAd = useMemo(() => pickAd(ads.filter((a) => a.location === 'sidebar')), [ads]);
+  const betweenSectionsAd = useMemo(
+    () => pickAd(ads.filter((a) => a.location === 'between_sections')),
+    [ads]
+  );
 
   /** Free-tier Speaking quota: used / limit (e.g. 2/3). */
   const speakingQuota = useMemo(() => {
@@ -584,7 +589,7 @@ export default function ExamStart() {
             )}
           </div>
 
-          <AdSlot location="between_sections" />
+          <AdSlot location="between_sections" ad={betweenSectionsAd} />
         </Col>
         <Col lg={4}>
           <AdSlot location="sidebar" ad={sidebarAd} />

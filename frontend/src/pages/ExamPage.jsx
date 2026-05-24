@@ -2,24 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Col, Container, Modal, Row, Spinner } from 'react-bootstrap';
 import { Link, useBeforeUnload, useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
+import {
+  getInitialQuestionIndex,
+  getNextQuestionIndex,
+  getPrevQuestionIndex,
+} from '../utils/examQuestionNav.js';
 import { resolveMediaUrl } from '../utils/mediaUrl.js';
+import { isDisplayableAd } from '../utils/adDisplay.js';
 import { pickAdFromResponse } from '../utils/pickAdFromResponse.js';
-
-function clampIndex(i, len) {
-  if (len < 1) {
-    return 0;
-  }
-  return Math.min(Math.max(0, i), len - 1);
-}
-
-/** First question index to show when resuming forward-only (indices below min are locked on the server). */
-function forwardOnlyInitialIndex(attempt, questionCount) {
-  if (!attempt?.forward_only || questionCount < 1) {
-    return 0;
-  }
-  return clampIndex(Number(attempt.forward_only_min_allowed_index ?? 0), questionCount);
-}
-
 import ExamLayout from '../components/ExamLayout.jsx';
 import ExamTtsVoiceRailNote from '../components/ExamTtsVoiceRailNote.jsx';
 import ListeningTtsPlayer from '../components/ListeningTtsPlayer.jsx';
@@ -29,6 +19,25 @@ import { DEFAULT_SECTION, useBandieTutor } from '../context/BandieTutorContext.j
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatAudioScriptForDisplay } from '../utils/ttsDialogue.js';
 import { isIeltsAiSpeakingQuestion, isSpeakingPictureTaskQuestion } from '../utils/ieltsAiSpeaking.js';
+
+function clampIndex(i, len) {
+  if (len < 1) {
+    return 0;
+  }
+  return Math.min(Math.max(0, i), len - 1);
+}
+
+/** First question index when resuming forward-only (indices below min are locked on the server). */
+function resolveStartQuestionIndex(attempt, questions, sectionName) {
+  const total = questions.length;
+  if (total < 1) {
+    return 0;
+  }
+  if (attempt?.forward_only) {
+    return clampIndex(Number(attempt.forward_only_min_allowed_index ?? 0), total);
+  }
+  return clampIndex(getInitialQuestionIndex(questions, sectionName), total);
+}
 
 function useDebouncedCallback(fn, delay) {
   const t = useRef();
@@ -41,9 +50,10 @@ function useDebouncedCallback(fn, delay) {
   );
 }
 
-const emptyExamRailAds = {
+const emptyExamAds = {
   exam_rail_left: null,
   exam_rail_right: null,
+  between_sections: null,
 };
 
 export default function ExamPage() {
@@ -74,7 +84,7 @@ export default function ExamPage() {
   /** Listening section: true while HTML5 audio or browser TTS is actively playing (locks Prev/Next/grid). */
   const [listeningPlaybackActive, setListeningPlaybackActive] = useState(false);
   const [loadError, setLoadError] = useState('');
-  const [examRailAds, setExamRailAds] = useState(emptyExamRailAds);
+  const [examAds, setExamAds] = useState(emptyExamAds);
   const startedRef = useRef(Date.now());
   const submittedRef = useRef(false);
   const allowNavigateRef = useRef(false);
@@ -165,7 +175,7 @@ export default function ExamPage() {
         setQuestions(qs);
         setAttempt(bundle.attempt ?? null);
         setTest(bundle.test ?? null);
-        setCurrent(forwardOnlyInitialIndex(bundle.attempt, qs.length));
+        setCurrent(resolveStartQuestionIndex(bundle.attempt, qs, bundle.test?.section?.name));
         const init = {};
         qs.forEach((q) => {
           init[q.id] = '';
@@ -195,7 +205,7 @@ export default function ExamPage() {
         setAttempt(data.attempt);
         setTest(data.test);
         setQuestions(qs);
-        setCurrent(forwardOnlyInitialIndex(data.attempt, qs.length));
+        setCurrent(resolveStartQuestionIndex(data.attempt, qs, data.test?.section?.name));
         const init = {};
         qs.forEach((q) => {
           const row = data.saved_answers?.[q.id];
@@ -225,26 +235,28 @@ export default function ExamPage() {
       return;
     }
     if (isSubscribed && !isAdmin) {
-      setExamRailAds(emptyExamRailAds);
+      setExamAds(emptyExamAds);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const [leftRes, rightRes] = await Promise.all([
+        const [leftRes, rightRes, midRes] = await Promise.all([
           api.get('/ads', { params: { location: 'exam_rail_left' } }),
           api.get('/ads', { params: { location: 'exam_rail_right' } }),
+          api.get('/ads', { params: { location: 'between_sections' } }),
         ]);
         if (cancelled) {
           return;
         }
-        setExamRailAds({
+        setExamAds({
           exam_rail_left: pickAdFromResponse(leftRes),
           exam_rail_right: pickAdFromResponse(rightRes),
+          between_sections: pickAdFromResponse(midRes),
         });
       } catch {
         if (!cancelled) {
-          setExamRailAds(emptyExamRailAds);
+          setExamAds(emptyExamAds);
         }
       }
     })();
@@ -257,8 +269,13 @@ export default function ExamPage() {
     if (!questions.length || !attempt?.forward_only) {
       return;
     }
-    const m = Number(attempt.forward_only_min_allowed_index ?? 0);
-    setCurrent((prev) => clampIndex(Math.max(prev, m), questions.length));
+    const m = clampIndex(Number(attempt.forward_only_min_allowed_index ?? 0), questions.length);
+    setCurrent((prev) => {
+      if (prev < m) {
+        return m;
+      }
+      return clampIndex(prev, questions.length);
+    });
   }, [attempt?.id, attempt?.forward_only, attempt?.forward_only_min_allowed_index, questions.length]);
 
   useEffect(() => {
@@ -288,38 +305,42 @@ export default function ExamPage() {
   const minAllowed = Number(attempt?.forward_only_min_allowed_index ?? 0);
   const prevDisabled = forwardOnly && current <= minAllowed;
 
+  const sectionName = test?.section?.name || '';
+
   const goNext = useCallback(async () => {
     if (!attempt || total < 1) {
       return;
     }
-    if (!attempt.forward_only) {
-      setCurrent((c) => Math.min(total - 1, c + 1));
+    const nextIndex = getNextQuestionIndex(questions, sectionName, current);
+    if (nextIndex === current) {
       return;
     }
-    if (current >= total - 1) {
+    if (!attempt.forward_only) {
+      setCurrent(nextIndex);
       return;
     }
     const serverMin = Number(attempt.forward_only_min_allowed_index ?? 0);
-    /** Stay in sync if UI index lags behind the server (e.g. first paint before effects). */
-    const newMin = Math.max(current + 1, serverMin);
-    try {
-      await api.post(`/attempts/${attemptId}/forward-only`, { min_allowed_index: newMin });
-      setAttempt((a) => (a ? { ...a, forward_only_min_allowed_index: newMin } : a));
-      setCurrent(clampIndex(newMin, total));
-    } catch (e) {
-      if (e.response?.status === 422 && attempt.forward_only) {
-        try {
-          const { data: sync } = await api.get(`/attempts/${attemptId}/resume`);
-          setAttempt(sync.attempt);
-          setQuestions(sync.questions);
-          const m = Number(sync.attempt.forward_only_min_allowed_index ?? 0);
-          setCurrent((prev) => clampIndex(Math.max(prev, m), sync.questions.length));
-        } catch {
-          /* ignore */
+    if (nextIndex > serverMin) {
+      try {
+        await api.post(`/attempts/${attemptId}/forward-only`, { min_allowed_index: nextIndex });
+        setAttempt((a) => (a ? { ...a, forward_only_min_allowed_index: nextIndex } : a));
+      } catch (e) {
+        if (e.response?.status === 422) {
+          try {
+            const { data: sync } = await api.get(`/attempts/${attemptId}/resume`);
+            setAttempt(sync.attempt);
+            setQuestions(sync.questions);
+            const m = Number(sync.attempt.forward_only_min_allowed_index ?? 0);
+            setCurrent(clampIndex(Math.min(nextIndex, m), sync.questions.length));
+          } catch {
+            /* ignore */
+          }
+          return;
         }
       }
     }
-  }, [attempt, attemptId, current, total]);
+    setCurrent(nextIndex);
+  }, [attempt, attemptId, current, questions, sectionName, total]);
 
   const goPrev = useCallback(() => {
     const m = Number(attempt?.forward_only_min_allowed_index ?? 0);
@@ -327,8 +348,12 @@ export default function ExamPage() {
     if (fo && current <= m) {
       return;
     }
-    setCurrent((c) => Math.max(fo ? m : 0, c - 1));
-  }, [attempt?.forward_only, attempt?.forward_only_min_allowed_index, current]);
+    const prevIndex = getPrevQuestionIndex(questions, sectionName, current);
+    if (fo && prevIndex < m) {
+      return;
+    }
+    setCurrent(prevIndex);
+  }, [attempt?.forward_only, attempt?.forward_only_min_allowed_index, current, questions, sectionName]);
 
   const selectQuestion = useCallback(
     (i) => {
@@ -419,6 +444,24 @@ export default function ExamPage() {
   const listenDone = q ? !!listenFinished[q.id] : false;
   const showQuestionAfterListen = !listeningGated || listenDone;
   const listeningNavLocked = isListeningSection && listeningPlaybackActive;
+  const showHouseAds = !isSubscribed || isAdmin;
+  const examLeftRail =
+    showHouseAds && isDisplayableAd(examAds.exam_rail_left) ? (
+      <AdSlot location="exam_rail_left" ad={examAds.exam_rail_left} />
+    ) : null;
+  const examRightRail = useMemo(() => {
+    const nodes = [];
+    if (isListeningSection) {
+      nodes.push(<ExamTtsVoiceRailNote key="tts-note" user={user} />);
+    }
+    if (showHouseAds && isDisplayableAd(examAds.exam_rail_right)) {
+      nodes.push(<AdSlot key="rail-right" location="exam_rail_right" ad={examAds.exam_rail_right} />);
+    }
+    if (!nodes.length) {
+      return null;
+    }
+    return <>{nodes}</>;
+  }, [examAds.exam_rail_right, isListeningSection, showHouseAds, user]);
 
   if (loading) {
     return (
@@ -473,17 +516,8 @@ export default function ExamPage() {
         navigationLocked={listeningNavLocked}
         paused={paused}
         onTogglePause={strictMode ? undefined : () => setPaused((p) => !p)}
-        leftRailExtra={
-          isSubscribed && !isAdmin ? null : <AdSlot location="exam_rail_left" ad={examRailAds.exam_rail_left} />
-        }
-        rightRailExtra={
-          <>
-            {isListeningSection ? <ExamTtsVoiceRailNote user={user} /> : null}
-            {isSubscribed && !isAdmin ? null : (
-              <AdSlot location="exam_rail_right" ad={examRailAds.exam_rail_right} />
-            )}
-          </>
-        }
+        leftRailExtra={examLeftRail}
+        rightRailExtra={examRightRail}
         questionNavQuestions={questions}
       >
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
@@ -610,11 +644,13 @@ export default function ExamPage() {
             showAdminKey={isAdmin}
           />
         )}
-        <Row className="mt-4">
-          <Col>
-            <AdSlot location="between_sections" />
-          </Col>
-        </Row>
+        {showHouseAds && isDisplayableAd(examAds.between_sections) ? (
+          <Row className="mt-4">
+            <Col>
+              <AdSlot location="between_sections" ad={examAds.between_sections} />
+            </Col>
+          </Row>
+        ) : null}
       </ExamLayout>
 
       <Modal
