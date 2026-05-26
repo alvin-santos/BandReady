@@ -14,7 +14,7 @@ class TestBandreadyMailCommand extends Command
                             {email? : Recipient address (defaults to MAIL_TEST_ADDRESS or first verified user)}
                             {--progress : Send a sample progress-reminder email instead of a plain ping}';
 
-    protected $description = 'Send a test email to verify MAIL_* configuration (uses the log driver by default).';
+    protected $description = 'Send a test email to verify MAIL_* configuration (uses the log driver by default). For the verification template use bandready:test-verification-email.';
 
     public function handle(): int
     {

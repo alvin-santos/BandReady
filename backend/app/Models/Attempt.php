@@ -44,12 +44,12 @@ class Attempt extends Model
      */
     public function questionsInAttemptOrder(): BaseCollection
     {
-        $this->loadMissing('test.questions');
-        $byId = $this->test->questions->keyBy('id');
         $order = $this->question_order;
         if (is_array($order) && count($order) > 0) {
-            $mapped = collect($order)
-                ->map(fn ($id) => $byId->get((int) $id))
+            $ids = array_values(array_map('intval', $order));
+            $byId = Question::query()->whereIn('id', $ids)->get()->keyBy('id');
+            $mapped = collect($ids)
+                ->map(fn (int $id) => $byId->get($id))
                 ->filter()
                 ->values();
             if ($mapped->isNotEmpty()) {
@@ -57,6 +57,8 @@ class Attempt extends Model
             }
             // Stale IDs (e.g. questions reseeded) — fall back so the exam UI is not empty.
         }
+
+        $this->loadMissing('test.questions');
 
         return $this->test->questions->sortBy('order')->values();
     }

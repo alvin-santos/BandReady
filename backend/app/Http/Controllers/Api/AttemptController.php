@@ -18,6 +18,7 @@ use App\Services\SpeakingAiSuspensionService;
 use App\Services\StatisticsRecorder;
 use App\Support\CelpipTestQuestionLimits;
 use App\Support\IeltsAiSpeaking;
+use App\Support\SectionQuestionPool;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -74,7 +75,7 @@ class AttemptController extends Controller
             $forwardOnly = false;
         }
 
-        $canonical = $test->questions()->orderBy('order')->get();
+        $canonical = SectionQuestionPool::forTest($test);
         $ieltsOrder = IeltsSpeakingInterviewOrder::orderedQuestionIds($test, $canonical);
         $fromIeltsSpeakingOrder = $ieltsOrder !== null && count($ieltsOrder) > 0;
         if ($fromIeltsSpeakingOrder) {
