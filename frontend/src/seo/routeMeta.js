@@ -45,6 +45,11 @@ const EXACT = {
     title: 'Contact',
     description: 'Contact BandReady for support, feedback, or partnership questions.',
   },
+  '/advertise': {
+    title: 'Advertise on BandReady',
+    description:
+      'Submit a display ad or sponsorship proposal for BandReady practice pages, exam runs, rankings, forum, and other placements.',
+  },
   '/about': {
     title: 'About BandReady',
     description:

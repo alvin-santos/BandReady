@@ -8,7 +8,6 @@ import {
   getPrevQuestionIndex,
 } from '../utils/examQuestionNav.js';
 import { resolveMediaUrl } from '../utils/mediaUrl.js';
-import { isDisplayableAd } from '../utils/adDisplay.js';
 import { pickAdFromResponse } from '../utils/pickAdFromResponse.js';
 import ExamLayout from '../components/ExamLayout.jsx';
 import ExamTtsVoiceRailNote from '../components/ExamTtsVoiceRailNote.jsx';
@@ -445,16 +444,13 @@ export default function ExamPage() {
   const showQuestionAfterListen = !listeningGated || listenDone;
   const listeningNavLocked = isListeningSection && listeningPlaybackActive;
   const showHouseAds = !isSubscribed || isAdmin;
-  const examLeftRail =
-    showHouseAds && isDisplayableAd(examAds.exam_rail_left) ? (
-      <AdSlot location="exam_rail_left" ad={examAds.exam_rail_left} />
-    ) : null;
+  const examLeftRail = showHouseAds ? <AdSlot location="exam_rail_left" ad={examAds.exam_rail_left} /> : null;
   const examRightRail = useMemo(() => {
     const nodes = [];
     if (isListeningSection) {
       nodes.push(<ExamTtsVoiceRailNote key="tts-note" user={user} />);
     }
-    if (showHouseAds && isDisplayableAd(examAds.exam_rail_right)) {
+    if (showHouseAds) {
       nodes.push(<AdSlot key="rail-right" location="exam_rail_right" ad={examAds.exam_rail_right} />);
     }
     if (!nodes.length) {
@@ -644,7 +640,7 @@ export default function ExamPage() {
             showAdminKey={isAdmin}
           />
         )}
-        {showHouseAds && isDisplayableAd(examAds.between_sections) ? (
+        {showHouseAds ? (
           <Row className="mt-4">
             <Col>
               <AdSlot location="between_sections" ad={examAds.between_sections} />

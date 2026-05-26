@@ -7,6 +7,7 @@ import Forum from './pages/Forum.jsx';
 import ForumCategory from './pages/ForumCategory.jsx';
 import ForumThread from './pages/ForumThread.jsx';
 import ContactAbout from './pages/ContactAbout.jsx';
+import AdvertisePage from './pages/AdvertisePage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx';
 import HowItWorksPage from './pages/HowItWorksPage.jsx';
@@ -113,6 +114,7 @@ export const router = createBrowserRouter([
       { path: 'terms', element: <TermsPage /> },
       { path: 'practice-disclaimer', element: <PracticeDisclaimer /> },
       { path: 'contact', element: <ContactAbout /> },
+      { path: 'advertise', element: <AdvertisePage /> },
       { path: 'forum', element: <Forum /> },
       { path: 'forum/category/:categoryId', element: <ForumCategory /> },
       { path: 'forum/thread/:threadId', element: <ForumThread /> },

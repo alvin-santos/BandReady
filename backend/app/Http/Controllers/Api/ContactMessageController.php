@@ -15,7 +15,7 @@ class ContactMessageController extends Controller
             'email' => 'required|email|max:190',
             'message' => 'required|string|min:10|max:8000',
             // Keep backwards compatibility with the old contact form.
-            'category' => 'sometimes|string|in:feedback,question,other',
+            'category' => 'sometimes|string|in:feedback,question,other,advertising',
         ]);
 
         $user = $request->user('sanctum');

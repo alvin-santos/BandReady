@@ -9,6 +9,9 @@ const categoryLabel = (c) => {
   if (c === 'question') {
     return 'Question';
   }
+  if (c === 'advertising') {
+    return 'Advertising';
+  }
   return 'Other';
 };
 
@@ -64,7 +67,8 @@ export default function AdminContactMessages() {
         Contact messages
       </h1>
       <p className="text-muted small mb-3">
-        Messages sent from the public <strong>Contact &amp; About</strong> page (guests and signed-in users).
+        Messages sent from <strong>Contact</strong>, <strong>Advertise</strong>, and related public forms (guests and
+        signed-in users).
       </p>
 
       {rows.length === 0 ? (

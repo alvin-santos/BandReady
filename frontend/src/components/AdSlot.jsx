@@ -1,31 +1,47 @@
 import { Card } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { AD_SLOT_SPECS } from '../constants/adPlacements.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isDisplayableAd } from '../utils/adDisplay.js';
 
-const SIZES = {
-  top_banner: { minHeight: 90, maxWidth: 728, label: '728 × 90' },
-  sidebar: { minHeight: 250, maxWidth: 300, label: '300 × 250' },
-  between_sections: { minHeight: 120, maxWidth: '100%', label: 'Responsive' },
-  results_a: { minHeight: 200, maxWidth: '100%', label: 'Results slot' },
-  results_b: { minHeight: 200, maxWidth: '100%', label: 'Results slot' },
-  dashboard: { minHeight: 140, maxWidth: '100%', label: 'Dashboard' },
-  /** Community forum — assign creatives in Admin → Advertisements */
-  forum_leaderboard: { minHeight: 90, maxWidth: 728, label: 'Forum leaderboard 728 × 90' },
-  forum_sidebar: { minHeight: 250, maxWidth: 300, label: 'Forum sidebar 300 × 250' },
-  forum_category_inline: { minHeight: 100, maxWidth: '100%', label: 'Forum board — inline' },
-  forum_thread_inline: { minHeight: 120, maxWidth: '100%', label: 'Forum thread — inline' },
-  /** Exam runner — left column under question nav */
-  exam_rail_left: { minHeight: 250, maxWidth: 300, label: 'Exam left rail 300 × 250' },
-  /** Exam runner — right column under instructions */
-  exam_rail_right: { minHeight: 250, maxWidth: 300, label: 'Exam right rail 300 × 250' },
-  /** Downloads & guides page */
-  resources_a: { minHeight: 120, maxWidth: '100%', label: 'Resources — top' },
-  resources_b: { minHeight: 120, maxWidth: '100%', label: 'Resources — below list' },
-  /** Public leaderboard */
-  rankings_a: { minHeight: 120, maxWidth: '100%', label: 'Rankings — above filters' },
-  rankings_b: { minHeight: 120, maxWidth: '100%', label: 'Rankings — below table' },
-};
+/**
+ * @param {object} props
+ * @param {string} props.location
+ * @param {{ minHeight: number; maxWidth: number | string; label: string }} props.spec
+ * @param {boolean} props.isForum
+ */
+function OpenForAdvertisingPitch({ location, spec, isForum }) {
+  const to = `/advertise?placement=${encodeURIComponent(location)}`;
+  const phStyle = isForum
+    ? { minHeight: spec.minHeight, maxWidth: spec.maxWidth, margin: '0 auto' }
+    : {
+        minHeight: spec.minHeight,
+        maxWidth: spec.maxWidth,
+        margin: '0 auto',
+        background: 'linear-gradient(135deg, rgba(37,99,235,0.06), rgba(99,102,241,0.04))',
+        border: '1px dashed rgba(37,99,235,0.3)',
+        borderRadius: 12,
+      };
+
+  return (
+    <Link
+      to={to}
+      className={`text-decoration-none text-reset d-block h-100 br-ad-slot-ph br-ad-slot-ph--open${isForum ? ' br-ad-slot-ph--forum' : ''}`}
+      aria-label="Open for advertising — submit an ad proposal"
+    >
+      <div
+        className="d-flex flex-column justify-content-center align-items-center text-center p-3 h-100"
+        style={phStyle}
+      >
+        <i className="bi bi-badge-ad fs-4 text-br-rose mb-2" aria-hidden />
+        <div className="fw-semibold text-body small">Open for advertising</div>
+        <div className="small text-muted mt-1">Click here to post your ad</div>
+        <div className="small br-ad-slot-ph__meta mt-2">{spec.label}</div>
+      </div>
+    </Link>
+  );
+}
 
 /**
  * @param {object} props
@@ -35,7 +51,9 @@ const SIZES = {
  */
 export default function AdSlot({ location, ad, surface = 'default' }) {
   const { isSubscribed, isAdmin } = useAuth();
-  const spec = SIZES[location] || { minHeight: 100, maxWidth: '100%', label: 'Ad' };
+  const spec = AD_SLOT_SPECS[location] || { minHeight: 100, maxWidth: '100%', label: 'Ad' };
+  const isForum = surface === 'forum';
+  const wrapClass = `ad-slot mb-3${isForum ? ' ad-slot--forum' : ''}`;
 
   /** Pro accounts never load third-party / house creatives; admins always see slots (e.g. to verify AdSense tags). */
   if (isSubscribed && !isAdmin) {
@@ -55,12 +73,13 @@ export default function AdSlot({ location, ad, surface = 'default' }) {
     );
   }
 
-  /** Disabled in admin, missing slot, or no image/link/script — hide placeholder. */
   if (!isDisplayableAd(ad)) {
-    return null;
+    return (
+      <div className={wrapClass}>
+        <OpenForAdvertisingPitch location={location} spec={spec} isForum={isForum} />
+      </div>
+    );
   }
-  const isForum = surface === 'forum';
-  const wrapClass = `ad-slot mb-3${isForum ? ' ad-slot--forum' : ''}`;
 
   if (ad?.script) {
     return (

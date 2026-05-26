@@ -92,8 +92,11 @@ export default function ContactAbout() {
               </p>
               <p className="small text-muted mb-4 pb-3 border-bottom">
                 <i className="bi bi-badge-ad text-br-rose me-1" aria-hidden />
-                <strong className="text-body">Advertising:</strong> BandReady is open to sponsorship and display ads.
-                Mention your company, preferred placement, and goals in your message below.
+                <strong className="text-body">Advertising:</strong> BandReady is open to sponsorship and display ads.{' '}
+                <Link to="/advertise" className="fw-semibold text-decoration-none">
+                  Submit an ad proposal
+                </Link>{' '}
+                with sample copy and placement preferences, or mention ads in your message below.
               </p>
               {done ? (
                 <Alert variant="success" className="border-0 mb-0">

@@ -69,7 +69,7 @@ export default function SiteFooter() {
                 </Link>
               </li>
               <li className="mb-0">
-                <Link to="/contact" className="link-secondary text-decoration-none">
+                <Link to="/advertise" className="link-secondary text-decoration-none">
                   Advertise with us
                 </Link>
               </li>
@@ -130,10 +130,10 @@ export default function SiteFooter() {
               <p className="fw-semibold text-body mb-1 mb-sm-0 d-sm-inline me-sm-1">Open for advertising</p>
               <span className="text-muted">
                 BandReady welcomes sponsors and display ads from education partners and related brands.{' '}
-                <Link to="/contact" className="fw-semibold text-decoration-none">
-                  Contact us
+                <Link to="/advertise" className="fw-semibold text-decoration-none">
+                  Submit an ad proposal
                 </Link>{' '}
-                to discuss placements on practice pages, rankings, the forum, and other slots.
+                for placements on practice pages, rankings, the forum, and other slots.
               </span>
             </div>
           </div>

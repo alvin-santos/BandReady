@@ -1,5 +1,6 @@
 /**
- * Whether a public /ads row should render in AdSlot (active + has creative content).
+ * Whether a public /ads row has real creative content (image or embed script).
+ * Link-only rows (e.g. seeded placeholders) are not shown — AdSlot uses the open-for-advertising pitch instead.
  * @param {Record<string, unknown> | null | undefined} ad
  */
 export function isDisplayableAd(ad) {
@@ -11,6 +12,5 @@ export function isDisplayableAd(ad) {
   }
   const script = typeof ad.script === 'string' ? ad.script.trim() : '';
   const image = typeof ad.image === 'string' ? ad.image.trim() : '';
-  const link = typeof ad.link === 'string' ? ad.link.trim() : '';
-  return !!(script || image || link);
+  return !!(script || image);
 }
